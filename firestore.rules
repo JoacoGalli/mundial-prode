@@ -1,0 +1,63 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/config/settings) &&
+        request.auth.uid in get(/databases/$(database)/documents/config/settings).data.adminUIDs;
+    }
+
+    // ---- /config/settings ----
+    // Everyone signed in can read the config (prize pool, distribution, admin list).
+    // The very first authenticated user may CREATE /config/settings (bootstrapping
+    // themselves as admin via adminUIDs). After it exists, only admins can update it.
+    match /config/{docId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && !exists(/databases/$(database)/documents/config/settings);
+      allow update, delete: if isAdmin();
+    }
+
+    // ---- /matches/{matchId} ----
+    // Everyone signed in can read matches. Only admins can create/edit matches
+    // or enter official results.
+    match /matches/{matchId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // ---- /users/{uid} ----
+    // Everyone signed in can read the users collection (for the leaderboard).
+    // A user can only write their own profile document. Admins may also write
+    // user documents so totalPoints can be recalculated after results are entered.
+    match /users/{uid} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn() && (request.auth.uid == uid || isAdmin());
+      allow delete: if false;
+    }
+
+    // ---- /predictions/{uid}_{matchId} ----
+    // Everyone signed in can read all predictions (for "My Predictions" / stats).
+    // A user may create/update only their own prediction (docId must start with
+    // their own uid) and only while the referenced match is not locked.
+    // Admins may write any prediction so points can be recalculated once a
+    // match result is entered.
+    match /predictions/{docId} {
+      allow read: if isSignedIn();
+
+      allow create, update: if isSignedIn() &&
+        docId.split('_')[0] == request.auth.uid &&
+        request.resource.data.uid == request.auth.uid &&
+        !get(/databases/$(database)/documents/matches/$(request.resource.data.matchId)).data.locked;
+
+      allow write: if isAdmin();
+
+      allow delete: if false;
+    }
+  }
+}
