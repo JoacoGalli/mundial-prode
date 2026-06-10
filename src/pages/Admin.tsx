@@ -1,6 +1,11 @@
 import { useEffect, useState } from 'react';
-import { Loader2, RefreshCw, Trophy, Upload } from 'lucide-react';
-import { subscribeToMatches, seedMatchesToFirestore, syncFixtureFromApi } from '../services/matches';
+import { AlertTriangle, Loader2, RefreshCw, Trophy, Upload } from 'lucide-react';
+import {
+  subscribeToMatches,
+  seedMatchesToFirestore,
+  syncFixtureFromApi,
+  replaceFixtureWithFullGroupStage,
+} from '../services/matches';
 import { subscribeToLeaderboard } from '../services/users';
 import { useAuth } from '../contexts/AuthContext';
 import { calculateWinners } from '../utils/prizes';
@@ -22,6 +27,7 @@ export default function Admin() {
   const [seeding, setSeeding] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
+  const [replacing, setReplacing] = useState(false);
   const [winners, setWinners] = useState<RankedUser[] | null>(null);
 
   useEffect(() => {
@@ -37,12 +43,28 @@ export default function Admin() {
   if (!matches || !settings) return <LoadingSpinner />;
 
   const handleSeed = async () => {
-    if (!confirm('¿Cargar el fixture del Mundial 2026 (Fecha 1, fase de grupos)? Esto agregará 15 partidos nuevos.')) return;
+    if (!confirm('¿Cargar el fixture completo del Mundial 2026 (Fecha 1, 2 y 3 de la fase de grupos)? Esto agregará 72 partidos nuevos.')) return;
     setSeeding(true);
     try {
       await seedMatchesToFirestore();
     } finally {
       setSeeding(false);
+    }
+  };
+
+  const handleReplace = async () => {
+    if (
+      !confirm(
+        '¿Reemplazar el fixture actual por el fixture completo del Mundial 2026 (Fecha 1, 2 y 3, 72 partidos)?\n\n' +
+          'Esto BORRA todos los partidos y pronósticos cargados hasta ahora y no se puede deshacer.'
+      )
+    )
+      return;
+    setReplacing(true);
+    try {
+      await replaceFixtureWithFullGroupStage();
+    } finally {
+      setReplacing(false);
     }
   };
 
@@ -76,9 +98,9 @@ export default function Admin() {
           <div>
             <h3 className="muted">Fixture</h3>
             <p className="muted" style={{ fontSize: '0.85rem', margin: 0 }}>
-              Cargá el fixture del Mundial 2026 (Fecha 1, fase de grupos) si todavía no hay
-              partidos. Cuando TheSportsDB publique la Fecha 2, la Fecha 3 o las llaves de
-              eliminación directa, usá "Actualizar fixture desde API" para sumarlos sin
+              Cargá el fixture completo del Mundial 2026 (Fecha 1, 2 y 3 de la fase de grupos,
+              72 partidos) si todavía no hay partidos. Cuando se publiquen las llaves de
+              eliminación directa, usá "Actualizar fixture desde API" para sumarlas sin
               perder los pronósticos ya cargados.
             </p>
           </div>
@@ -98,6 +120,21 @@ export default function Admin() {
             {syncMessage}
           </p>
         )}
+
+        <div className="flex-between" style={{ flexWrap: 'wrap', gap: '0.75rem', marginTop: '1.25rem', paddingTop: '1.25rem', borderTop: '1px dashed rgba(255, 255, 255, 0.12)' }}>
+          <div>
+            <h3 className="muted">Reemplazar fixture completo</h3>
+            <p className="muted" style={{ fontSize: '0.85rem', margin: 0 }}>
+              Si ya cargaste un fixture viejo o incompleto (por ejemplo, sólo la Fecha 1), usá
+              esto para borrar todos los partidos y pronósticos actuales y cargar de nuevo el
+              fixture completo (Fecha 1, 2 y 3, 72 partidos). Esta acción no se puede deshacer.
+            </p>
+          </div>
+          <button className="btn btn-danger" onClick={handleReplace} disabled={replacing}>
+            {replacing ? <Loader2 size={16} className="spin" /> : <AlertTriangle size={16} />}
+            Reemplazar fixture completo
+          </button>
+        </div>
       </div>
 
       <div className="card section" style={{ overflowX: 'auto' }}>

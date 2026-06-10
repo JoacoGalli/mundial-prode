@@ -78,11 +78,16 @@ export async function lockMatch(matchId: string, locked: boolean) {
   await updateDoc(doc(db, 'matches', matchId), { locked });
 }
 
+/** Builds a key that identifies a fixture regardless of home/away order. */
+function fixtureKey(apiTeamA: string, apiTeamB: string, round: string): string {
+  return `${round}:${[apiTeamA, apiTeamB].sort().join('|')}`;
+}
+
 /**
  * Pull the latest World Cup 2026 schedule from TheSportsDB and add any
- * matches that aren't in Firestore yet (matched by externalId) — e.g. once
- * matchday 2/3 or the knockout bracket gets published. Returns how many
- * matches were added.
+ * matches that aren't in Firestore yet (matched by team pair + round) — e.g.
+ * once the knockout bracket gets published. Returns how many matches were
+ * added.
  */
 export async function syncFixtureFromApi(): Promise<number> {
   const [fixtures, existingSnap] = await Promise.all([
@@ -90,11 +95,19 @@ export async function syncFixtureFromApi(): Promise<number> {
     getDocs(matchesCol),
   ]);
 
-  const existingExternalIds = new Set(
-    existingSnap.docs.map((d) => (d.data() as Match).externalId).filter(Boolean)
+  const existingKeys = new Set(
+    existingSnap.docs
+      .map((d) => {
+        const data = d.data() as Match;
+        if (!data.apiTeamA || !data.apiTeamB) return null;
+        return fixtureKey(data.apiTeamA, data.apiTeamB, data.round);
+      })
+      .filter((k): k is string => k !== null)
   );
 
-  const newFixtures = fixtures.filter((f) => !existingExternalIds.has(f.externalId));
+  const newFixtures = fixtures.filter(
+    (f) => !existingKeys.has(fixtureKey(f.apiTeamA, f.apiTeamB, f.round))
+  );
   if (newFixtures.length === 0) return 0;
 
   const now = Date.now();
@@ -105,12 +118,13 @@ export async function syncFixtureFromApi(): Promise<number> {
     batch.set(ref, {
       teamA: f.teamA,
       teamB: f.teamB,
+      apiTeamA: f.apiTeamA,
+      apiTeamB: f.apiTeamB,
       datetime,
       stage: f.stage,
       round: f.round,
       result: null,
       locked: datetime.toMillis() < now,
-      externalId: f.externalId,
     });
   });
   await batch.commit();
@@ -128,13 +142,38 @@ export async function seedMatchesToFirestore() {
     batch.set(ref, {
       teamA: m.teamA,
       teamB: m.teamB,
+      apiTeamA: m.apiTeamA,
+      apiTeamB: m.apiTeamB,
       datetime,
       stage: m.stage,
       round: m.round,
       result: null,
       locked: datetime.toMillis() < now,
-      externalId: m.externalId,
     });
   });
   await batch.commit();
+}
+
+/**
+ * Delete every match and prediction, then reseed the full 72-match group
+ * stage fixture (Fecha 1-3, groups A-L). Destructive — admin only, used to
+ * upgrade an old/partial fixture to the full schedule.
+ */
+export async function replaceFixtureWithFullGroupStage() {
+  const [matchesSnap, predsSnap, usersSnap] = await Promise.all([
+    getDocs(matchesCol),
+    getDocs(collection(db, 'predictions')),
+    getDocs(collection(db, 'users')),
+  ]);
+
+  const docsToDelete = [...matchesSnap.docs, ...predsSnap.docs];
+  for (let i = 0; i < docsToDelete.length; i += 500) {
+    const batch = writeBatch(db);
+    docsToDelete.slice(i, i + 500).forEach((d) => batch.delete(d.ref));
+    await batch.commit();
+  }
+
+  await seedMatchesToFirestore();
+
+  await Promise.all(usersSnap.docs.map((d) => recalculateUserTotalPoints(d.id)));
 }

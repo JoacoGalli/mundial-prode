@@ -33,8 +33,9 @@ export interface Match {
   round: Round;
   result?: MatchResult | null;
   locked: boolean;
-  /** TheSportsDB event ID, used to auto-sync the official result */
-  externalId?: string;
+  /** Team names as TheSportsDB reports them, used to auto-sync the official result */
+  apiTeamA?: string;
+  apiTeamB?: string;
 }
 
 export interface Prediction {

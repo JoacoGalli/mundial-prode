@@ -44,18 +44,21 @@ de datos en tiempo real con **Firebase Firestore**. Se hostea gratis en **GitHub
   configurable (por defecto 25 pts) a su `totalPoints`.
 - **Premios**: muestra el pozo total, la distribución configurada y el pago
   estimado por posición según la tabla actual.
-- **Resultados automáticos**: los partidos se cargan con su ID de evento de
-  [TheSportsDB](https://www.thesportsdb.com/). Cada vez que un admin abre la
-  app, se consulta TheSportsDB para los partidos ya jugados sin resultado
-  cargado y, si ya finalizaron, se aplica el resultado solo — esto dispara el
-  recálculo automático de puntos de todos los pronósticos. No hace falta
-  cargar resultados a mano.
+- **Resultados automáticos**: cada partido del fixture incluye los nombres de
+  los equipos tal como los reporta [TheSportsDB](https://www.thesportsdb.com/).
+  Cada vez que un admin abre la app, se consulta TheSportsDB para los
+  partidos ya jugados sin resultado cargado y, si ya finalizaron, se aplica
+  el resultado solo — esto dispara el recálculo automático de puntos de
+  todos los pronósticos. No hace falta cargar resultados a mano.
 - **Panel de Admin** (`/admin`):
-  - Cargar el fixture real del Mundial 2026 (Fecha 1 de la fase de grupos)
-    con un botón.
+  - Cargar el fixture completo del Mundial 2026 (Fecha 1, 2 y 3 de la fase de
+    grupos, 72 partidos de los 12 grupos A-L) con un botón.
   - "Actualizar fixture desde API": consulta TheSportsDB y agrega los
-    partidos nuevos que se vayan publicando (Fecha 2, Fecha 3, llaves de
-    eliminación directa) sin tocar los partidos ni pronósticos existentes.
+    partidos nuevos que se vayan publicando (llaves de eliminación directa)
+    sin tocar los partidos ni pronósticos existentes.
+  - "Reemplazar fixture completo": borra todos los partidos y pronósticos
+    actuales y vuelve a cargar el fixture completo de 72 partidos — útil para
+    actualizar instalaciones que solo tenían cargada la Fecha 1.
   - Cargar/editar manualmente el resultado oficial de cada partido si hace
     falta (esto también recalcula los puntos de todos los pronósticos para
     ese partido y el total de cada jugador).
@@ -230,12 +233,16 @@ a cada uno según su posición y la distribución configurada.
 
 ---
 
-## Sincronización automática de resultados
+## Fixture y sincronización automática de resultados
 
-Cada partido seedeado (`src/data/matches.ts`) incluye un `externalId`: el
-`idEvent` del partido en [TheSportsDB](https://www.thesportsdb.com/) (liga
-**FIFA World Cup**, id `4429`, temporada `2026`), usando su API pública
-gratuita (key `3`, sin necesidad de registro).
+El fixture de la fase de grupos (`src/data/matches.ts`, 72 partidos: Fecha 1,
+2 y 3 de los grupos A-L) sale del repo
+[openfootball/worldcup.json](https://github.com/openfootball/worldcup.json),
+que publica el calendario completo del Mundial 2026 con fechas y horarios
+oficiales. Cada partido guarda, además del nombre de los equipos en español
+(`teamA`/`teamB`), el nombre que usa [TheSportsDB](https://www.thesportsdb.com/)
+para esos mismos equipos (`apiTeamA`/`apiTeamB`), que se usa para buscar el
+resultado oficial automáticamente.
 
 Funcionamiento (`src/hooks/useAutoSyncResults.ts`):
 
@@ -243,7 +250,12 @@ Funcionamiento (`src/hooks/useAutoSyncResults.ts`):
    la deje abierta, el hook revisa todos los partidos.
 2. Para los que ya arrancaron (`locked` o `datetime` pasada) y todavía no
    tienen `result` cargado, consulta
-   `GET https://www.thesportsdb.com/api/v1/json/3/lookupevent.php?id={externalId}`.
+   `GET https://www.thesportsdb.com/api/v1/json/3/eventsday.php?d={fecha}&l=4429`
+   (liga **FIFA World Cup**, id `4429`, API pública gratuita key `3`, sin
+   necesidad de registro) y busca el evento cuyo `strHomeTeam`/`strAwayTeam`
+   coincidan con `apiTeamA`/`apiTeamB` (probando también el día anterior y
+   siguiente, por si TheSportsDB lo lista en una fecha distinta por husos
+   horarios).
 3. Si TheSportsDB ya tiene `intHomeScore`/`intAwayScore` (partido finalizado),
    se llama a `setMatchResult(matchId, result)` automáticamente — esto marca
    el partido como `locked` y recalcula los puntos de todos los pronósticos
@@ -252,7 +264,7 @@ Funcionamiento (`src/hooks/useAutoSyncResults.ts`):
    consultar en el siguiente ciclo (cada 2 horas), hasta que aparezca.
 5. En el mismo ciclo de 2 horas también se ejecuta automáticamente
    "Actualizar fixture desde API" (ver más abajo), así no hace falta
-   acordarse de cargar la siguiente fecha a mano.
+   acordarse de cargar las llaves de eliminación directa a mano.
 
 > ⚠️ Esto requiere que un admin tenga la app abierta en algún momento después
 > de que termine un partido (o pase el ciclo de 2hs) para que se dispare la
@@ -262,18 +274,17 @@ Funcionamiento (`src/hooks/useAutoSyncResults.ts`):
 > actualizó), podés seguir haciéndolo desde la tabla de partidos del panel de
 > Admin.
 
-### Cargar fechas y fases siguientes
+### Llaves de eliminación directa
 
-Al día de hoy TheSportsDB sólo publica la Fecha 1 de la fase de grupos. A
-medida que se confirmen la Fecha 2, la Fecha 3 y las llaves de eliminación
-directa (Dieciseisavos, Octavos, Cuartos, Semifinales, Final), un admin con la
-app abierta las va a recibir automáticamente (cada 2 horas, ver arriba). Si
-no querés esperar, también podés ir al panel de Admin y tocar
-**"Actualizar fixture desde API"** para forzarlo: la app vuelve a consultar
-`eventsseason.php` y agrega como partidos nuevos sólo los que todavía no estén
-en Firestore (comparando por `externalId`), sin afectar
-los partidos ni pronósticos ya cargados. Cada partido nuevo se clasifica en
-su fase (`round`) según el `intRound` que devuelve TheSportsDB.
+TheSportsDB todavía no publica los cruces de Dieciseisavos en adelante. A
+medida que se confirmen, un admin con la app abierta los va a recibir
+automáticamente (cada 2 horas, ver arriba). Si no querés esperar, también
+podés ir al panel de Admin y tocar **"Actualizar fixture desde API"** para
+forzarlo: la app vuelve a consultar `eventsseason.php` y agrega como partidos
+nuevos sólo los que todavía no estén en Firestore (comparando por equipos +
+fase), sin afectar los partidos ni pronósticos ya cargados. Cada partido
+nuevo se clasifica en su fase (`round`) según el `intRound` que devuelve
+TheSportsDB.
 
 ---
 
@@ -291,7 +302,7 @@ su fase (`round`) según el `intRound` que devuelve TheSportsDB.
 src/
   components/       # UI reutilizable (Layout, MatchCard, ScoreSpinner, admin/...)
   contexts/          # AuthContext (sesión, perfil, settings, rol admin)
-  data/              # Fixture real del Mundial 2026 (Fecha 1, fase de grupos)
+  data/              # Fixture real del Mundial 2026 (Fecha 1-3, fase de grupos)
   hooks/             # useAutoSyncResults (sincronización automática de resultados)
   lib/firebase.ts    # Inicialización de Firebase
   pages/             # Dashboard, Matches, MyPredictions, Prizes, Admin, Login

@@ -65,6 +65,7 @@ const TEAM_NAME_ES: Record<string, string> = {
   Cameroon: 'Camerún',
   Algeria: 'Argelia',
   Iran: 'Irán',
+  Iraq: 'Irak',
   Jordan: 'Jordania',
   Uzbekistan: 'Uzbekistán',
   'New Zealand': 'Nueva Zelanda',
@@ -99,69 +100,127 @@ const TEAM_NAME_ES: Record<string, string> = {
   Tanzania: 'Tanzania',
 };
 
-/** English team name -> Group letter, derived from the seeded matchday-1 fixture. */
+/** English (TheSportsDB) team name -> Group letter for the WC2026 group stage. */
 const TEAM_GROUP_EN: Record<string, string> = {
+  // Group A
+  'Czech Republic': 'A',
   Mexico: 'A',
   'South Africa': 'A',
   'South Korea': 'A',
-  'Czech Republic': 'A',
-  Canada: 'B',
+  // Group B
   'Bosnia-Herzegovina': 'B',
+  Canada: 'B',
   Qatar: 'B',
   Switzerland: 'B',
+  // Group C
   Brazil: 'C',
-  Morocco: 'C',
   Haiti: 'C',
+  Morocco: 'C',
   Scotland: 'C',
+  // Group D
+  Australia: 'D',
+  Paraguay: 'D',
+  Turkey: 'D',
   USA: 'D',
   'United States': 'D',
-  Paraguay: 'D',
-  Australia: 'D',
-  Turkey: 'D',
-  Germany: 'E',
+  // Group E
+  Curaçao: 'E',
   Curacao: 'E',
-  'Ivory Coast': 'E',
   Ecuador: 'E',
-  Netherlands: 'F',
+  Germany: 'E',
+  'Ivory Coast': 'E',
+  // Group F
   Japan: 'F',
+  Netherlands: 'F',
   Sweden: 'F',
   Tunisia: 'F',
+  // Group G
   Belgium: 'G',
   Egypt: 'G',
-  Spain: 'H',
+  Iran: 'G',
+  'New Zealand': 'G',
+  // Group H
   'Cape Verde': 'H',
   'Saudi Arabia': 'H',
+  Spain: 'H',
   Uruguay: 'H',
+  // Group I
+  France: 'I',
+  Iraq: 'I',
+  Norway: 'I',
+  Senegal: 'I',
+  // Group J
+  Algeria: 'J',
+  Argentina: 'J',
+  Austria: 'J',
+  Jordan: 'J',
+  // Group K
+  Colombia: 'K',
+  'DR Congo': 'K',
+  Portugal: 'K',
+  Uzbekistan: 'K',
+  // Group L
+  Croatia: 'L',
+  England: 'L',
+  Ghana: 'L',
+  Panama: 'L',
 };
 
 export function translateTeamName(name: string): string {
   return TEAM_NAME_ES[name] ?? name;
 }
 
+function addDays(dateISO: string, days: number): string {
+  const d = new Date(`${dateISO}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
 /**
- * Look up the official result of a match on TheSportsDB by its event ID.
- * Returns null if the match hasn't finished yet (or has no score reported).
+ * Look up the official result of a match on TheSportsDB by date and team
+ * names, since the free API doesn't reliably expose every event's ID ahead
+ * of time. Tries the given date and the days right before/after it (events
+ * are sometimes listed under a neighboring date due to timezone rounding).
+ * Returns null if the match hasn't finished yet (or wasn't found).
  */
-export async function fetchEventResult(externalId: string): Promise<MatchResult | null> {
-  const res = await fetch(`${THESPORTSDB_BASE}/lookupevent.php?id=${externalId}`);
-  if (!res.ok) return null;
+export async function fetchResultByDateAndTeams(
+  dateISO: string,
+  apiTeamA: string,
+  apiTeamB: string
+): Promise<MatchResult | null> {
+  const candidateDates = [dateISO, addDays(dateISO, 1), addDays(dateISO, -1)];
 
-  const data = await res.json();
-  const event = data?.events?.[0] as TheSportsDbEvent | undefined;
-  if (!event) return null;
+  for (const date of candidateDates) {
+    const res = await fetch(`${THESPORTSDB_BASE}/eventsday.php?d=${date}&l=${WORLD_CUP_LEAGUE_ID}`);
+    if (!res.ok) continue;
 
-  if (event.intHomeScore == null || event.intAwayScore == null) return null;
+    const data = await res.json();
+    const events = (data?.events ?? []) as TheSportsDbEvent[];
 
-  return {
-    home: parseInt(event.intHomeScore, 10),
-    away: parseInt(event.intAwayScore, 10),
-  };
+    const event = events.find(
+      (e) =>
+        (e.strHomeTeam === apiTeamA && e.strAwayTeam === apiTeamB) ||
+        (e.strHomeTeam === apiTeamB && e.strAwayTeam === apiTeamA)
+    );
+    if (!event) continue;
+
+    if (event.intHomeScore == null || event.intAwayScore == null) return null;
+
+    const home = parseInt(event.intHomeScore, 10);
+    const away = parseInt(event.intAwayScore, 10);
+
+    return event.strHomeTeam === apiTeamA ? { home, away } : { home: away, away: home };
+  }
+
+  return null;
 }
 
 export interface FixtureEvent {
-  externalId: string;
   teamA: string;
   teamB: string;
+  /** Team names as TheSportsDB reports them, used to auto-sync the official result */
+  apiTeamA: string;
+  apiTeamB: string;
   /** ISO 8601 datetime string (UTC) */
   datetime: string;
   stage: string;
@@ -195,9 +254,10 @@ export async function fetchSeasonEvents(): Promise<FixtureEvent[]> {
     const stage = group ? `Grupo ${group}` : round;
 
     fixtures.push({
-      externalId: event.idEvent,
       teamA,
       teamB,
+      apiTeamA: event.strHomeTeam,
+      apiTeamB: event.strAwayTeam,
       datetime: `${event.strTimestamp}Z`,
       stage,
       round,
