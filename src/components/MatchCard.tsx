@@ -56,7 +56,7 @@ export default function MatchCard({ match, prediction, onSave }: MatchCardProps)
             <ScoreSpinner value={away} onChange={setAway} disabled={locked} label={`Goles ${match.teamB}`} />
           </div>
 
-          <div className="flex gap-sm" style={{ alignItems: 'center' }}>
+          <div className="ticket-footer-meta">
             {prediction?.points != null && (
               <span className="badge badge-points">+{prediction.points} pts</span>
             )}
