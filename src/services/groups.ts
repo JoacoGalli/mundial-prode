@@ -59,16 +59,30 @@ export async function createGroup(
 }
 
 export function subscribeToGroup(groupId: string, callback: (group: Group | null) => void) {
-  return onSnapshot(doc(db, 'groups', groupId), (snap) => {
-    callback(snap.exists() ? toGroup(snap) : null);
-  });
+  return onSnapshot(
+    doc(db, 'groups', groupId),
+    (snap) => {
+      callback(snap.exists() ? toGroup(snap) : null);
+    },
+    (error) => {
+      console.error(`subscribeToGroup(${groupId}) error:`, error);
+      callback(null);
+    }
+  );
 }
 
 /** All members (pending + approved) of a group, e.g. for the group admin panel. */
 export function subscribeToGroupMembers(groupId: string, callback: (members: GroupMember[]) => void) {
-  return onSnapshot(collection(db, 'groups', groupId, 'members'), (snap) => {
-    callback(snap.docs.map((d) => d.data() as GroupMember));
-  });
+  return onSnapshot(
+    collection(db, 'groups', groupId, 'members'),
+    (snap) => {
+      callback(snap.docs.map((d) => d.data() as GroupMember));
+    },
+    (error) => {
+      console.error(`subscribeToGroupMembers(${groupId}) error:`, error);
+      callback([]);
+    }
+  );
 }
 
 /** Every group membership (pending or approved) belonging to `uid`. */
@@ -77,14 +91,21 @@ export function subscribeToMyMemberships(
   callback: (rows: { groupId: string; status: GroupMember['status'] }[]) => void
 ) {
   const q = query(collectionGroup(db, 'members'), where('uid', '==', uid));
-  return onSnapshot(q, (snap) => {
-    callback(
-      snap.docs.map((d) => ({
-        groupId: d.ref.parent.parent!.id,
-        status: (d.data() as GroupMember).status,
-      }))
-    );
-  });
+  return onSnapshot(
+    q,
+    (snap) => {
+      callback(
+        snap.docs.map((d) => ({
+          groupId: d.ref.parent.parent!.id,
+          status: (d.data() as GroupMember).status,
+        }))
+      );
+    },
+    (error) => {
+      console.error('subscribeToMyMemberships error:', error);
+      callback([]);
+    }
+  );
 }
 
 export async function findGroupByInviteCode(code: string): Promise<Group | null> {
