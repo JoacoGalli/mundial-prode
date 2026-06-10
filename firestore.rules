@@ -41,6 +41,22 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // ---- /championPicks/{uid} ----
+    // Everyone signed in can read all picks (for transparency once locked).
+    // A user may create/update only their own pick, and only while picks
+    // aren't locked. Admins can write any pick to record bonus points once
+    // the real champion is set.
+    match /championPicks/{uid} {
+      allow read: if isSignedIn();
+
+      allow create, update: if isSignedIn() && request.auth.uid == uid &&
+        !get(/databases/$(database)/documents/config/settings).data.championPicksLocked;
+
+      allow write: if isAdmin();
+
+      allow delete: if false;
+    }
+
     // ---- /predictions/{uid}_{matchId} ----
     // Everyone signed in can read all predictions (for "My Predictions" / stats).
     // A user may create/update only their own prediction (docId must start with

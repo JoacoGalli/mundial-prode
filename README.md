@@ -38,6 +38,10 @@ de datos en tiempo real con **Firebase Firestore**. Se hostea gratis en **GitHub
   Final.
 - **Mis Pronósticos**: historial de todos tus pronósticos con el resultado
   oficial y los puntos obtenidos en cada partido.
+- **Pronóstico de Campeón**: cada jugador elige una vez qué selección cree
+  que va a salir campeona (entre todos los equipos del fixture cargado).
+  Cuando el admin confirma el campeón real, quienes acertaron suman un bonus
+  configurable (por defecto 25 pts) a su `totalPoints`.
 - **Premios**: muestra el pozo total, la distribución configurada y el pago
   estimado por posición según la tabla actual.
 - **Resultados automáticos**: los partidos se cargan con su ID de evento de
@@ -56,6 +60,9 @@ de datos en tiempo real con **Firebase Firestore**. Se hostea gratis en **GitHub
     falta (esto también recalcula los puntos de todos los pronósticos para
     ese partido y el total de cada jugador).
   - Bloquear/desbloquear partidos manualmente.
+  - Configurar los puntos de bonus por acertar el campeón, abrir/cerrar los
+    pronósticos de campeón, y confirmar el campeón real (recalcula los
+    puntos de todos los jugadores y cierra los pronósticos).
   - Configurar el pozo de premios (monto + moneda ARS/USD) y la distribución
     por puestos, con presets o porcentajes personalizados (deben sumar 100%).
   - Botón "Calcular Ganadores" para ver el ranking final con el premio de

@@ -1,15 +1,19 @@
 import { useEffect, useState } from 'react';
 import { subscribeToMatches } from '../services/matches';
 import { subscribeToUserPredictions } from '../services/predictions';
+import { subscribeToChampionPick, saveChampionPick } from '../services/championPicks';
 import { useAuth } from '../contexts/AuthContext';
 import LoadingSpinner from '../components/LoadingSpinner';
+import ChampionPickCard from '../components/ChampionPickCard';
 import { formatDateTime } from '../utils/format';
-import type { Match, Prediction } from '../types';
+import { getAllTeams } from '../utils/teams';
+import type { ChampionPick, Match, Prediction } from '../types';
 
 export default function MyPredictions() {
-  const { user, profile } = useAuth();
+  const { user, profile, settings } = useAuth();
   const [matches, setMatches] = useState<Match[] | null>(null);
   const [predictions, setPredictions] = useState<Prediction[]>([]);
+  const [championPick, setChampionPick] = useState<ChampionPick | null>(null);
 
   useEffect(() => {
     const unsubscribe = subscribeToMatches(setMatches);
@@ -22,10 +26,17 @@ export default function MyPredictions() {
     return () => unsubscribe();
   }, [user]);
 
+  useEffect(() => {
+    if (!user) return;
+    const unsubscribe = subscribeToChampionPick(user.uid, setChampionPick);
+    return () => unsubscribe();
+  }, [user]);
+
   if (!matches) return <LoadingSpinner />;
 
   const predictionByMatch = new Map(predictions.map((p) => [p.matchId, p]));
   const matchesWithPredictions = matches.filter((m) => predictionByMatch.has(m.id));
+  const teams = getAllTeams(matches);
 
   return (
     <div className="page">
@@ -39,6 +50,15 @@ export default function MyPredictions() {
           </span>
         </div>
       </div>
+
+      {settings && teams.length > 0 && user && (
+        <ChampionPickCard
+          teams={teams}
+          pick={championPick}
+          settings={settings}
+          onSave={(team) => saveChampionPick(user.uid, team)}
+        />
+      )}
 
       {matchesWithPredictions.length === 0 && (
         <p className="muted">Todavía no hiciste ningún pronóstico. ¡Andá a la sección Partidos!</p>

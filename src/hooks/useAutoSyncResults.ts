@@ -1,42 +1,62 @@
 import { useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { subscribeToMatches, setMatchResult } from '../services/matches';
+import { subscribeToMatches, setMatchResult, syncFixtureFromApi } from '../services/matches';
 import { fetchEventResult } from '../services/sportsApi';
 import { isMatchLocked } from '../utils/format';
+import type { Match } from '../types';
+
+const SYNC_INTERVAL_MS = 2 * 60 * 60 * 1000; // 2 hours
 
 /**
- * For admins: whenever the app loads, check matches that have already
- * kicked off but have no official result yet, look them up on
- * TheSportsDB, and apply the result automatically (which triggers
- * point recalculation for everyone).
+ * For admins: periodically (on load and every 2 hours while the app stays
+ * open) checks matches that have already kicked off but have no official
+ * result yet, looks them up on TheSportsDB, and applies the result
+ * automatically (which triggers point recalculation for everyone). It also
+ * pulls in any newly-published fixtures (next matchday, knockout bracket)
+ * so the admin doesn't have to remember to do it manually.
  */
 export function useAutoSyncResults() {
   const { isAdmin } = useAuth();
-  const checked = useRef<Set<string>>(new Set());
+  const matchesRef = useRef<Match[]>([]);
+  const found = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     if (!isAdmin) return;
 
-    const unsubscribe = subscribeToMatches(async (matches) => {
-      for (const match of matches) {
+    const checkResults = async () => {
+      for (const match of matchesRef.current) {
         if (match.result != null) continue;
         if (!match.externalId) continue;
         if (!isMatchLocked(match)) continue;
-        if (checked.current.has(match.id)) continue;
-
-        checked.current.add(match.id);
+        if (found.current.has(match.id)) continue;
 
         try {
           const result = await fetchEventResult(match.externalId);
           if (result) {
+            found.current.add(match.id);
             await setMatchResult(match.id, result);
           }
         } catch {
-          checked.current.delete(match.id);
+          // try again next cycle
         }
       }
+    };
+
+    const unsubscribe = subscribeToMatches((matches) => {
+      matchesRef.current = matches;
+      checkResults();
     });
 
-    return () => unsubscribe();
+    syncFixtureFromApi().catch(() => {});
+
+    const interval = setInterval(() => {
+      checkResults();
+      syncFixtureFromApi().catch(() => {});
+    }, SYNC_INTERVAL_MS);
+
+    return () => {
+      unsubscribe();
+      clearInterval(interval);
+    };
   }, [isAdmin]);
 }

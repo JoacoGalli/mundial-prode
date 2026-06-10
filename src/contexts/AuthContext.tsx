@@ -31,6 +31,9 @@ const DEFAULT_SETTINGS: Omit<AppSettings, 'adminUIDs'> = {
   prizePool: 0,
   currency: 'ARS',
   distribution: [70, 30],
+  champion: null,
+  championBonus: 25,
+  championPicksLocked: false,
 };
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -106,7 +109,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const settingsRef = doc(db, 'config', 'settings');
     const unsubscribe = onSnapshot(settingsRef, (snap) => {
       if (snap.exists()) {
-        setSettings(snap.data() as AppSettings);
+        const data = snap.data() as AppSettings;
+        setSettings({
+          ...data,
+          champion: data.champion ?? null,
+          championBonus: data.championBonus ?? 25,
+          championPicksLocked: data.championPicksLocked ?? false,
+        });
       }
     });
     return () => unsubscribe();

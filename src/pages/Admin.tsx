@@ -8,6 +8,8 @@ import { formatCurrency } from '../utils/format';
 import LoadingSpinner from '../components/LoadingSpinner';
 import AdminMatchRow from '../components/admin/AdminMatchRow';
 import PrizeSettings from '../components/admin/PrizeSettings';
+import ChampionSettings from '../components/admin/ChampionSettings';
+import { getAllTeams } from '../utils/teams';
 import type { Match, UserProfile } from '../types';
 import type { RankedUser } from '../utils/prizes';
 
@@ -123,6 +125,8 @@ export default function Admin() {
       </div>
 
       <PrizeSettings settings={settings} />
+
+      <ChampionSettings teams={getAllTeams(matches)} settings={settings} />
 
       <div className="card section">
         <div className="flex-between" style={{ flexWrap: 'wrap', gap: '0.75rem', marginBottom: '0.75rem' }}>
