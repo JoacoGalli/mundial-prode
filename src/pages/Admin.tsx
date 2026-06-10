@@ -33,7 +33,7 @@ export default function Admin() {
   if (!matches || !settings) return <LoadingSpinner />;
 
   const handleSeed = async () => {
-    if (!confirm('¿Cargar el fixture de ejemplo del Mundial 2026? Esto agregará 12 partidos nuevos.')) return;
+    if (!confirm('¿Cargar el fixture del Mundial 2026 (Fecha 1, fase de grupos)? Esto agregará 15 partidos nuevos.')) return;
     setSeeding(true);
     try {
       await seedMatchesToFirestore();
@@ -55,12 +55,12 @@ export default function Admin() {
           <div>
             <h3 className="muted">Fixture</h3>
             <p className="muted" style={{ fontSize: '0.85rem', margin: 0 }}>
-              Cargá el fixture de ejemplo del Mundial 2026 si todavía no hay partidos.
+              Cargá el fixture del Mundial 2026 (Fecha 1, fase de grupos) si todavía no hay partidos.
             </p>
           </div>
           <button className="btn btn-secondary" onClick={handleSeed} disabled={seeding}>
             {seeding ? <Loader2 size={16} className="spin" /> : <Upload size={16} />}
-            Cargar partidos de ejemplo
+            Cargar fixture del Mundial 2026
           </button>
         </div>
       </div>
