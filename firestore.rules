@@ -82,6 +82,31 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // ---- /groups/{groupId}/members/{uid} (collection group) ----
+    // Nested `match` blocks don't apply to collectionGroup() queries, so all
+    // rules for member docs live in this single top-level rule (using the
+    // {path=**} wildcard), which also covers normal /groups/{id}/members/{uid}
+    // reads/writes. `path` here is everything before "/members/{uid}", i.e.
+    // ['groups', groupId], so path[1] is the groupId.
+    //
+    // Any signed-in user can read membership docs (needed to list a group's
+    // members and to query "my memberships" across groups). A user can
+    // create their own 'pending' join request; group admins can
+    // create/approve/edit any member doc. A user can remove their own
+    // membership (leave) and group admins can remove any member.
+    match /{path=**}/members/{uid} {
+      allow read: if isSignedIn();
+
+      allow create: if isSignedIn() && (
+        (request.auth.uid == uid && request.resource.data.status == 'pending') ||
+        isGroupAdmin(path[1])
+      );
+
+      allow update: if isGroupAdmin(path[1]);
+
+      allow delete: if isSignedIn() && (request.auth.uid == uid || isGroupAdmin(path[1]));
+    }
+
     // ---- /groups/{groupId} ----
     // Any signed-in user can read groups (needed to resolve invite links)
     // and create a new group, becoming its sole owner/admin. Only the
@@ -96,25 +121,6 @@ service cloud.firestore {
 
       allow update: if isGroupAdmin(groupId);
       allow delete: if false;
-
-      // ---- /groups/{groupId}/members/{uid} ----
-      // Any signed-in user can read membership docs (needed to list a
-      // group's members and to query "my memberships" across groups).
-      // A user can create their own 'pending' join request; group admins
-      // can create/approve/edit any member doc. A user can remove their
-      // own membership (leave) and group admins can remove any member.
-      match /members/{uid} {
-        allow read: if isSignedIn();
-
-        allow create: if isSignedIn() && (
-          (request.auth.uid == uid && request.resource.data.status == 'pending') ||
-          isGroupAdmin(groupId)
-        );
-
-        allow update: if isGroupAdmin(groupId);
-
-        allow delete: if isSignedIn() && (request.auth.uid == uid || isGroupAdmin(groupId));
-      }
     }
   }
 }
