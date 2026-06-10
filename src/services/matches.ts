@@ -1,7 +1,6 @@
 import {
   collection,
   doc,
-  getDoc,
   getDocs,
   onSnapshot,
   orderBy,
@@ -66,12 +65,7 @@ export async function recalculateUserTotalPoints(uid: string) {
     return sum + points;
   }, 0);
 
-  const championSnap = await getDoc(doc(db, 'championPicks', uid));
-  const championPoints = championSnap.exists()
-    ? ((championSnap.data().points as number | null) ?? 0)
-    : 0;
-
-  await updateDoc(doc(db, 'users', uid), { totalPoints: predictionPoints + championPoints });
+  await updateDoc(doc(db, 'users', uid), { predictionPoints });
 }
 
 export async function lockMatch(matchId: string, locked: boolean) {

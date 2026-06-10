@@ -5,7 +5,7 @@ export interface UserProfile {
   name: string;
   email: string;
   photoURL: string;
-  totalPoints: number;
+  predictionPoints: number;
   joinedAt: Timestamp;
 }
 
@@ -64,5 +64,25 @@ export interface AppSettings {
 export interface ChampionPick {
   uid: string;
   team: string;
-  points: number | null;
+}
+
+export interface Group {
+  id: string;
+  name: string;
+  ownerUid: string;
+  adminUIDs: string[];
+  inviteCode: string;
+  prizePool: number;
+  currency: 'ARS' | 'USD';
+  distribution: number[];
+  championBonus: number;
+  createdAt: Timestamp;
+}
+
+export interface GroupMember {
+  uid: string;
+  name: string;
+  photoURL: string;
+  status: 'pending' | 'approved';
+  joinedAt: Timestamp;
 }

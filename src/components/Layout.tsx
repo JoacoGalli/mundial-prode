@@ -1,5 +1,5 @@
 import { NavLink, Outlet } from 'react-router-dom';
-import { LayoutDashboard, ListChecks, Trophy, ShieldCheck, LogOut, Goal } from 'lucide-react';
+import { LayoutDashboard, ListChecks, Trophy, ShieldCheck, LogOut, Goal, Users } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 export default function Layout() {
@@ -46,6 +46,13 @@ export default function Layout() {
           <NavLink to="/prizes" className={({ isActive }) => (isActive ? 'active' : '')}>
             <Trophy size={20} />
             <span>Premios</span>
+          </NavLink>
+          <NavLink
+            to="/groups"
+            className={({ isActive }) => (isActive ? 'active' : '')}
+          >
+            <Users size={20} />
+            <span>Grupos</span>
           </NavLink>
           {isAdmin && (
             <NavLink to="/admin" className={({ isActive }) => (isActive ? 'active' : '')}>

@@ -1,26 +1,35 @@
 import { useEffect, useState } from 'react';
 import { subscribeToLeaderboard } from '../services/users';
+import { subscribeToAllChampionPicks } from '../services/championPicks';
 import { useAuth } from '../contexts/AuthContext';
-import { calculateWinners } from '../utils/prizes';
+import { buildLeaderboardEntries, calculateWinners } from '../utils/prizes';
 import { formatCurrency } from '../utils/format';
 import LoadingSpinner from '../components/LoadingSpinner';
-import type { UserProfile } from '../types';
+import type { ChampionPick, UserProfile } from '../types';
 
 const MEDALS = ['🥇', '🥈', '🥉'];
 
 export default function Dashboard() {
   const { user, settings } = useAuth();
   const [users, setUsers] = useState<UserProfile[] | null>(null);
+  const [picks, setPicks] = useState<ChampionPick[]>([]);
 
   useEffect(() => {
     const unsubscribe = subscribeToLeaderboard(setUsers);
     return () => unsubscribe();
   }, []);
 
-  if (!users) return <LoadingSpinner />;
+  useEffect(() => {
+    const unsubscribe = subscribeToAllChampionPicks(setPicks);
+    return () => unsubscribe();
+  }, []);
 
-  const ranked = settings ? calculateWinners(users, settings) : null;
-  const hasPrizePool = settings && settings.prizePool > 0;
+  if (!users || !settings) return <LoadingSpinner />;
+
+  const picksByUid = Object.fromEntries(picks.map((p) => [p.uid, p]));
+  const entries = buildLeaderboardEntries(users, picksByUid, settings.champion, settings.championBonus);
+  const ranked = calculateWinners(entries, settings);
+  const hasPrizePool = settings.prizePool > 0;
 
   return (
     <div className="page">
@@ -37,7 +46,7 @@ export default function Dashboard() {
             </tr>
           </thead>
           <tbody>
-            {(ranked ?? users.map((u, i) => ({ ...u, rank: i + 1, prize: 0 }))).map((u) => (
+            {ranked.map((u) => (
               <tr key={u.uid} className={u.uid === user?.uid ? 'me' : ''}>
                 <td>{MEDALS[u.rank - 1] ?? u.rank}</td>
                 <td>
@@ -54,7 +63,7 @@ export default function Dashboard() {
                 </td>
                 <td>{u.totalPoints}</td>
                 {hasPrizePool && (
-                  <td>{u.prize > 0 ? formatCurrency(u.prize, settings!.currency) : '—'}</td>
+                  <td>{u.prize > 0 ? formatCurrency(u.prize, settings.currency) : '—'}</td>
                 )}
               </tr>
             ))}

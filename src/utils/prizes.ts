@@ -1,15 +1,49 @@
-import type { AppSettings, UserProfile } from '../types';
+import type { ChampionPick } from '../types';
 
-export interface RankedUser extends UserProfile {
+export interface LeaderboardEntry {
+  uid: string;
+  name: string;
+  photoURL: string;
+  totalPoints: number;
+}
+
+export interface RankedUser extends LeaderboardEntry {
   rank: number;
   prize: number;
 }
 
-export function calculateWinners(users: UserProfile[], settings: AppSettings): RankedUser[] {
-  const sorted = [...users].sort((a, b) => b.totalPoints - a.totalPoints);
+/** Bonus points a champion pick is worth, or 0 if it doesn't match the official champion. */
+export function getChampionPoints(
+  pick: Pick<ChampionPick, 'team'> | null | undefined,
+  champion: string | null,
+  bonus: number
+): number {
+  return champion != null && pick?.team === champion ? bonus : 0;
+}
+
+/** Combines each user's prediction points with their (on-the-fly) champion bonus. */
+export function buildLeaderboardEntries(
+  users: { uid: string; name: string; photoURL: string; predictionPoints: number }[],
+  picksByUid: Record<string, ChampionPick>,
+  champion: string | null,
+  championBonus: number
+): LeaderboardEntry[] {
+  return users.map((u) => ({
+    uid: u.uid,
+    name: u.name,
+    photoURL: u.photoURL,
+    totalPoints: u.predictionPoints + getChampionPoints(picksByUid[u.uid], champion, championBonus),
+  }));
+}
+
+export function calculateWinners(
+  entries: LeaderboardEntry[],
+  prizes: { prizePool: number; distribution: number[] }
+): RankedUser[] {
+  const sorted = [...entries].sort((a, b) => b.totalPoints - a.totalPoints);
   return sorted.map((u, i) => {
-    const pct = settings.distribution[i] ?? 0;
-    const prize = Math.round(((settings.prizePool * pct) / 100) * 100) / 100;
+    const pct = prizes.distribution[i] ?? 0;
+    const prize = Math.round(((prizes.prizePool * pct) / 100) * 100) / 100;
     return { ...u, rank: i + 1, prize };
   });
 }

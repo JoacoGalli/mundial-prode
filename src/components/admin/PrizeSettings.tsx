@@ -1,21 +1,26 @@
 import { useEffect, useState } from 'react';
 import { Loader2, Plus, Trash2 } from 'lucide-react';
-import { updateSettings } from '../../services/settings';
 import { DISTRIBUTION_PRESETS } from '../../utils/prizes';
-import type { AppSettings } from '../../types';
 
-export default function PrizeSettings({ settings }: { settings: AppSettings }) {
-  const [prizePool, setPrizePool] = useState(settings.prizePool);
-  const [currency, setCurrency] = useState<'ARS' | 'USD'>(settings.currency);
-  const [distribution, setDistribution] = useState<number[]>(settings.distribution);
+interface PrizeSettingsProps {
+  prizePool: number;
+  currency: 'ARS' | 'USD';
+  distribution: number[];
+  onSave: (data: { prizePool: number; currency: 'ARS' | 'USD'; distribution: number[] }) => Promise<void>;
+}
+
+export default function PrizeSettings({ prizePool: initialPrizePool, currency: initialCurrency, distribution: initialDistribution, onSave }: PrizeSettingsProps) {
+  const [prizePool, setPrizePool] = useState(initialPrizePool);
+  const [currency, setCurrency] = useState<'ARS' | 'USD'>(initialCurrency);
+  const [distribution, setDistribution] = useState<number[]>(initialDistribution);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
-    setPrizePool(settings.prizePool);
-    setCurrency(settings.currency);
-    setDistribution(settings.distribution);
-  }, [settings]);
+    setPrizePool(initialPrizePool);
+    setCurrency(initialCurrency);
+    setDistribution(initialDistribution);
+  }, [initialPrizePool, initialCurrency, initialDistribution]);
 
   const total = distribution.reduce((a, b) => a + b, 0);
   const isValid = total === 100 && distribution.length > 0;
@@ -24,7 +29,7 @@ export default function PrizeSettings({ settings }: { settings: AppSettings }) {
     if (!isValid) return;
     setSaving(true);
     try {
-      await updateSettings({ prizePool, currency, distribution });
+      await onSave({ prizePool, currency, distribution });
       setSaved(true);
       setTimeout(() => setSaved(false), 1500);
     } finally {

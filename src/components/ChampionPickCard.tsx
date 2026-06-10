@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Loader2, Lock, Trophy } from 'lucide-react';
 import type { AppSettings, ChampionPick } from '../types';
+import { getChampionPoints } from '../utils/prizes';
 
 interface ChampionPickCardProps {
   teams: string[];
@@ -52,9 +53,9 @@ export default function ChampionPickCard({ teams, pick, settings, onSave }: Cham
           {pick?.team && (
             <>
               {' '}— Tu pronóstico: <strong>{pick.team}</strong>{' '}
-              {pick.points != null && (
-                <span className="badge badge-points">+{pick.points} pts</span>
-              )}
+              <span className="badge badge-points">
+                +{getChampionPoints(pick, settings.champion, settings.championBonus)} pts
+              </span>
             </>
           )}
         </p>

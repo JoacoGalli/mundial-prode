@@ -46,7 +46,7 @@ export default function MyPredictions() {
         <div className="flex-between">
           <span>Puntos totales</span>
           <span className="badge badge-points" style={{ fontSize: '1rem' }}>
-            {profile?.totalPoints ?? 0} pts
+            {profile?.predictionPoints ?? 0} pts
           </span>
         </div>
       </div>

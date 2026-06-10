@@ -2,25 +2,34 @@ import { useEffect, useState } from 'react';
 import { Trophy } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { subscribeToLeaderboard } from '../services/users';
-import { calculateWinners } from '../utils/prizes';
+import { subscribeToAllChampionPicks } from '../services/championPicks';
+import { buildLeaderboardEntries, calculateWinners } from '../utils/prizes';
 import { formatCurrency } from '../utils/format';
 import LoadingSpinner from '../components/LoadingSpinner';
-import type { UserProfile } from '../types';
+import type { ChampionPick, UserProfile } from '../types';
 
 const MEDALS = ['🥇', '🥈', '🥉'];
 
 export default function Prizes() {
   const { settings } = useAuth();
   const [users, setUsers] = useState<UserProfile[] | null>(null);
+  const [picks, setPicks] = useState<ChampionPick[]>([]);
 
   useEffect(() => {
     const unsubscribe = subscribeToLeaderboard(setUsers);
     return () => unsubscribe();
   }, []);
 
+  useEffect(() => {
+    const unsubscribe = subscribeToAllChampionPicks(setPicks);
+    return () => unsubscribe();
+  }, []);
+
   if (!users || !settings) return <LoadingSpinner />;
 
-  const ranked = calculateWinners(users, settings);
+  const picksByUid = Object.fromEntries(picks.map((p) => [p.uid, p]));
+  const entries = buildLeaderboardEntries(users, picksByUid, settings.champion, settings.championBonus);
+  const ranked = calculateWinners(entries, settings);
 
   return (
     <div className="page">

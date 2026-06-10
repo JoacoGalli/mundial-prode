@@ -1,14 +1,6 @@
-import {
-  collection,
-  doc,
-  getDocs,
-  onSnapshot,
-  setDoc,
-  writeBatch,
-} from 'firebase/firestore';
+import { collection, doc, onSnapshot, setDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { updateSettings } from './settings';
-import { recalculateUserTotalPoints } from './matches';
 import type { ChampionPick } from '../types';
 
 const championPicksCol = collection(db, 'championPicks');
@@ -29,7 +21,7 @@ export function subscribeToAllChampionPicks(callback: (picks: ChampionPick[]) =>
 }
 
 export async function saveChampionPick(uid: string, team: string) {
-  await setDoc(doc(championPicksCol, uid), { uid, team, points: null }, { merge: true });
+  await setDoc(doc(championPicksCol, uid), { uid, team }, { merge: true });
 }
 
 export async function toggleChampionPicksLocked(locked: boolean) {
@@ -37,21 +29,10 @@ export async function toggleChampionPicksLocked(locked: boolean) {
 }
 
 /**
- * Admin: declare the official World Cup champion. Awards `championBonus`
- * points to every user whose pick matches, recalculates everyone's
- * totalPoints, and locks further changes to picks.
+ * Admin: declare the official World Cup champion and lock further changes
+ * to picks. Champion bonus points are computed on the fly wherever a
+ * leaderboard is rendered, so no recalculation is needed here.
  */
-export async function setChampion(team: string, championBonus: number) {
+export async function setChampion(team: string) {
   await updateSettings({ champion: team, championPicksLocked: true });
-
-  const picksSnap = await getDocs(championPicksCol);
-  const batch = writeBatch(db);
-  picksSnap.docs.forEach((d) => {
-    const pick = d.data() as ChampionPick;
-    const points = pick.team === team ? championBonus : 0;
-    batch.update(d.ref, { points });
-  });
-  await batch.commit();
-
-  await Promise.all(picksSnap.docs.map((d) => recalculateUserTotalPoints(d.id)));
 }

@@ -61,7 +61,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             name: firebaseUser.displayName ?? 'Jugador',
             email: firebaseUser.email ?? '',
             photoURL: firebaseUser.photoURL ?? '',
-            totalPoints: 0,
+            predictionPoints: 0,
             joinedAt: serverTimestamp(),
           });
         }

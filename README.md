@@ -18,6 +18,7 @@ de datos en tiempo real con **Firebase Firestore**. Se hostea gratis en **GitHub
 6. [Cómo convertirte en admin](#cómo-convertirte-en-admin)
 7. [Sistema de puntaje](#sistema-de-puntaje)
 8. [Distribución de premios](#distribución-de-premios)
+9. [Grupos / Torneos privados](#grupos--torneos-privados)
 
 ---
 
@@ -41,9 +42,14 @@ de datos en tiempo real con **Firebase Firestore**. Se hostea gratis en **GitHub
 - **Pronóstico de Campeón**: cada jugador elige una vez qué selección cree
   que va a salir campeona (entre todos los equipos del fixture cargado).
   Cuando el admin confirma el campeón real, quienes acertaron suman un bonus
-  configurable (por defecto 25 pts) a su `totalPoints`.
+  a su puntaje (configurable, por defecto 25 pts globales y editable por
+  grupo, ver [Grupos](#grupos--torneos-privados)).
 - **Premios**: muestra el pozo total, la distribución configurada y el pago
   estimado por posición según la tabla actual.
+- **Grupos / Torneos privados**: cualquier usuario puede crear su propio
+  grupo, compartir un link de invitación y, como admin del grupo, aprobar
+  miembros y configurar el pozo de premios y el bonus de campeón de ese
+  grupo (ver sección dedicada más abajo).
 - **Resultados automáticos**: cada partido del fixture incluye los nombres de
   los equipos tal como los reporta [TheSportsDB](https://www.thesportsdb.com/).
   Cada vez que un admin abre la app, se consulta TheSportsDB para los
@@ -288,6 +294,48 @@ TheSportsDB.
 
 ---
 
+## Grupos / Torneos privados
+
+Además de la tabla y los premios "globales" (pestañas **Tabla** y **Premios**,
+configurados desde `/admin`), cualquier usuario puede crear sus propios
+**grupos** (torneos privados entre amigos/familia/laburo) desde la pestaña
+**Grupos**:
+
+- Los pronósticos de partidos y el pick de campeón son **únicos por
+  usuario** (no cambian entre grupos): lo que varía por grupo es el **pozo de
+  premios**, su **distribución** y el **bonus por acertar el campeón**.
+- **Crear un grupo**: cualquier usuario logueado puede crear uno desde
+  `/groups`, eligiendo un nombre. Queda automáticamente como dueño/admin.
+- **Invitar gente**: desde `/groups/:id/admin` el admin del grupo encuentra un
+  link de invitación (`#/join/<código>`) para compartir. También puede
+  regenerar el código en cualquier momento (invalida el link anterior).
+- **Unirse a un grupo**: al abrir el link de invitación (o pegando el código
+  en `/groups`), el usuario queda en estado **pendiente** hasta que un admin
+  del grupo lo apruebe desde `/groups/:id/admin`.
+- **Administrar un grupo**: los admins pueden cambiar el nombre, el pozo de
+  premios (monto, moneda y distribución, igual que en `/admin` global) y el
+  bonus de campeón propio del grupo, además de aprobar/rechazar solicitudes y
+  quitar miembros.
+- **Tabla y premios por grupo**: `/groups/:id` muestra el ranking y los
+  premios calculados solo entre los miembros aprobados de ese grupo, usando
+  los puntos de pronósticos de cada uno más el bonus de campeón **de ese
+  grupo** (si el campeón real ya está confirmado y el pronóstico de campeón
+  del jugador coincide).
+
+> ⚠️ Configuración adicional en Firebase: además de `firestore.rules`
+> (volver a pegar y publicar), esta función necesita un **índice de
+> "collection group"** para poder buscar "mis grupos" de forma eficiente.
+> Andá a Firestore Database > pestaña **Indexes** > **Composite indexes** >
+> **Add index**, y creá uno con:
+> - Collection ID: `members`
+> - Query scope: **Collection group**
+> - Campo: `uid`, orden Ascending
+>
+> Es un paso único; una vez creado (puede tardar uno o dos minutos en estar
+> listo), todo funciona automáticamente.
+
+---
+
 ## Stack técnico
 
 - [React 19](https://react.dev/) + [Vite](https://vitejs.dev/) + TypeScript
@@ -305,8 +353,9 @@ src/
   data/              # Fixture real del Mundial 2026 (Fecha 1-3, fase de grupos)
   hooks/             # useAutoSyncResults (sincronización automática de resultados)
   lib/firebase.ts    # Inicialización de Firebase
-  pages/             # Dashboard, Matches, MyPredictions, Prizes, Admin, Login
-  services/          # Acceso a Firestore + TheSportsDB (matches, predictions, users, settings, sportsApi)
+  pages/             # Dashboard, Matches, MyPredictions, Prizes, Admin, Login,
+                     # Groups, GroupDetail, GroupAdmin, JoinGroup
+  services/          # Acceso a Firestore + TheSportsDB (matches, predictions, users, settings, sportsApi, groups)
   types/             # Tipos compartidos (Match, Prediction, UserProfile, ...)
   utils/             # calculatePoints, calculateWinners, formatters
 firestore.rules

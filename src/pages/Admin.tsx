@@ -7,15 +7,17 @@ import {
   replaceFixtureWithFullGroupStage,
 } from '../services/matches';
 import { subscribeToLeaderboard } from '../services/users';
+import { subscribeToAllChampionPicks } from '../services/championPicks';
+import { updateSettings } from '../services/settings';
 import { useAuth } from '../contexts/AuthContext';
-import { calculateWinners } from '../utils/prizes';
+import { buildLeaderboardEntries, calculateWinners } from '../utils/prizes';
 import { formatCurrency } from '../utils/format';
 import LoadingSpinner from '../components/LoadingSpinner';
 import AdminMatchRow from '../components/admin/AdminMatchRow';
 import PrizeSettings from '../components/admin/PrizeSettings';
 import ChampionSettings from '../components/admin/ChampionSettings';
 import { getAllTeams } from '../utils/teams';
-import type { Match, UserProfile } from '../types';
+import type { ChampionPick, Match, UserProfile } from '../types';
 import type { RankedUser } from '../utils/prizes';
 
 const MEDALS = ['🥇', '🥈', '🥉'];
@@ -24,6 +26,7 @@ export default function Admin() {
   const { settings } = useAuth();
   const [matches, setMatches] = useState<Match[] | null>(null);
   const [users, setUsers] = useState<UserProfile[]>([]);
+  const [picks, setPicks] = useState<ChampionPick[]>([]);
   const [seeding, setSeeding] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
@@ -37,6 +40,11 @@ export default function Admin() {
 
   useEffect(() => {
     const unsubscribe = subscribeToLeaderboard(setUsers);
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    const unsubscribe = subscribeToAllChampionPicks(setPicks);
     return () => unsubscribe();
   }, []);
 
@@ -86,7 +94,9 @@ export default function Admin() {
   };
 
   const handleCalculateWinners = () => {
-    setWinners(calculateWinners(users, settings));
+    const picksByUid = Object.fromEntries(picks.map((p) => [p.uid, p]));
+    const entries = buildLeaderboardEntries(users, picksByUid, settings.champion, settings.championBonus);
+    setWinners(calculateWinners(entries, settings));
   };
 
   return (
@@ -161,7 +171,12 @@ export default function Admin() {
         )}
       </div>
 
-      <PrizeSettings settings={settings} />
+      <PrizeSettings
+        prizePool={settings.prizePool}
+        currency={settings.currency}
+        distribution={settings.distribution}
+        onSave={updateSettings}
+      />
 
       <ChampionSettings teams={getAllTeams(matches)} settings={settings} />
 

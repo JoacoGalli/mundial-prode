@@ -458,4 +458,15 @@ tr.me {
   .ticket-team {
     font-size: 1.05rem;
   }
+
+  .bottom-nav {
+    overflow-x: auto;
+    justify-content: flex-start;
+  }
+
+  .bottom-nav a {
+    flex: 1 0 auto;
+    font-size: 0.6rem;
+    padding: 0.25rem 0.35rem;
+  }
 }

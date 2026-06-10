@@ -44,7 +44,7 @@ export default function ChampionSettings({ teams, settings }: ChampionSettingsPr
       return;
     setConfirming(true);
     try {
-      await setChampion(champion, bonus);
+      await setChampion(champion);
     } finally {
       setConfirming(false);
     }
