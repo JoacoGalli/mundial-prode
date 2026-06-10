@@ -1,8 +1,36 @@
+import { useState } from 'react';
 import { Goal } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
+function errorMessage(code?: string): string {
+  switch (code) {
+    case 'auth/unauthorized-domain':
+      return 'Este sitio no está autorizado para iniciar sesión todavía. Avisale al administrador para que agregue este dominio en Firebase (Authentication > Settings > Authorized domains).';
+    case 'auth/popup-blocked':
+      return 'El navegador bloqueó la ventana de inicio de sesión. Permití pop-ups para este sitio e intentá de nuevo.';
+    case 'auth/network-request-failed':
+      return 'Error de conexión. Revisá tu internet e intentá de nuevo.';
+    default:
+      return 'No se pudo iniciar sesión. Intentá de nuevo.';
+  }
+}
+
 export default function Login() {
   const { signInWithGoogle } = useAuth();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleLogin = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      await signInWithGoogle();
+    } catch (err) {
+      setError(errorMessage((err as { code?: string }).code));
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div
@@ -16,9 +44,14 @@ export default function Login() {
       <p className="muted" style={{ marginBottom: '2rem' }}>
         Pronosticá los partidos del Mundial 2026 y competí por el premio
       </p>
-      <button className="btn btn-primary" onClick={() => signInWithGoogle()}>
-        Iniciar sesión con Google
+      <button className="btn btn-primary" onClick={handleLogin} disabled={loading}>
+        {loading ? 'Conectando...' : 'Iniciar sesión con Google'}
       </button>
+      {error && (
+        <p style={{ color: 'var(--color-danger, #e25555)', marginTop: '1rem', maxWidth: 360, textAlign: 'center' }}>
+          {error}
+        </p>
+      )}
     </div>
   );
 }

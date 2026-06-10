@@ -109,7 +109,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [user]);
 
   const signInWithGoogle = async () => {
-    await signInWithPopup(auth, googleProvider);
+    try {
+      await signInWithPopup(auth, googleProvider);
+    } catch (err) {
+      const code = (err as { code?: string }).code;
+      // The user closing the popup or clicking too fast isn't a real error.
+      if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') {
+        return;
+      }
+      console.error('Error al iniciar sesión con Google:', code, err);
+      throw err;
+    }
   };
 
   const logOut = async () => {
