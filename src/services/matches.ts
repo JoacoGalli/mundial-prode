@@ -14,13 +14,17 @@ import { db } from '../lib/firebase';
 import { calculatePoints } from '../utils/scoring';
 import type { Match, MatchResult } from '../types';
 import { seedMatches } from '../data/matches';
+import { fetchSeasonEvents } from './sportsApi';
 
 const matchesCol = collection(db, 'matches');
 
 export function subscribeToMatches(callback: (matches: Match[]) => void) {
   const q = query(matchesCol, orderBy('datetime', 'asc'));
   return onSnapshot(q, (snap) => {
-    const matches = snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Match, 'id'>) }));
+    const matches = snap.docs.map((d) => {
+      const data = d.data() as Omit<Match, 'id'>;
+      return { id: d.id, ...data, round: data.round ?? 'Fecha 1' } as Match;
+    });
     callback(matches);
   });
 }
@@ -67,6 +71,46 @@ export async function lockMatch(matchId: string, locked: boolean) {
   await updateDoc(doc(db, 'matches', matchId), { locked });
 }
 
+/**
+ * Pull the latest World Cup 2026 schedule from TheSportsDB and add any
+ * matches that aren't in Firestore yet (matched by externalId) — e.g. once
+ * matchday 2/3 or the knockout bracket gets published. Returns how many
+ * matches were added.
+ */
+export async function syncFixtureFromApi(): Promise<number> {
+  const [fixtures, existingSnap] = await Promise.all([
+    fetchSeasonEvents(),
+    getDocs(matchesCol),
+  ]);
+
+  const existingExternalIds = new Set(
+    existingSnap.docs.map((d) => (d.data() as Match).externalId).filter(Boolean)
+  );
+
+  const newFixtures = fixtures.filter((f) => !existingExternalIds.has(f.externalId));
+  if (newFixtures.length === 0) return 0;
+
+  const now = Date.now();
+  const batch = writeBatch(db);
+  newFixtures.forEach((f) => {
+    const datetime = Timestamp.fromDate(new Date(f.datetime));
+    const ref = doc(matchesCol);
+    batch.set(ref, {
+      teamA: f.teamA,
+      teamB: f.teamB,
+      datetime,
+      stage: f.stage,
+      round: f.round,
+      result: null,
+      locked: datetime.toMillis() < now,
+      externalId: f.externalId,
+    });
+  });
+  await batch.commit();
+
+  return newFixtures.length;
+}
+
 /** Push the World Cup 2026 group-stage fixtures into Firestore (admin only). */
 export async function seedMatchesToFirestore() {
   const now = Date.now();
@@ -79,6 +123,7 @@ export async function seedMatchesToFirestore() {
       teamB: m.teamB,
       datetime,
       stage: m.stage,
+      round: m.round,
       result: null,
       locked: datetime.toMillis() < now,
       externalId: m.externalId,

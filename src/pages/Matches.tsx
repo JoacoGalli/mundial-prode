@@ -4,12 +4,14 @@ import { subscribeToUserPredictions, savePrediction } from '../services/predicti
 import { useAuth } from '../contexts/AuthContext';
 import MatchCard from '../components/MatchCard';
 import LoadingSpinner from '../components/LoadingSpinner';
-import type { Match, Prediction } from '../types';
+import { ROUNDS, getDefaultRound } from '../utils/rounds';
+import type { Match, Prediction, Round } from '../types';
 
 export default function Matches() {
   const { user } = useAuth();
   const [matches, setMatches] = useState<Match[] | null>(null);
   const [predictions, setPredictions] = useState<Prediction[]>([]);
+  const [selectedRound, setSelectedRound] = useState<Round | null>(null);
 
   useEffect(() => {
     const unsubscribe = subscribeToMatches(setMatches);
@@ -25,14 +27,35 @@ export default function Matches() {
   if (!matches) return <LoadingSpinner />;
 
   const predictionByMatch = new Map(predictions.map((p) => [p.matchId, p]));
+  const round = selectedRound ?? getDefaultRound(matches);
+  const matchesInRound = matches.filter((m) => m.round === round);
 
   return (
     <div className="page">
       <h1 className="page-title">Partidos</h1>
+
+      <select
+        className="input"
+        value={round}
+        onChange={(e) => setSelectedRound(e.target.value as Round)}
+        style={{ marginBottom: '1rem', width: '100%' }}
+      >
+        {ROUNDS.map((r) => (
+          <option key={r} value={r}>
+            {r}
+          </option>
+        ))}
+      </select>
+
       {matches.length === 0 && (
         <p className="muted">Todavía no hay partidos cargados. Pedile al admin que cargue el fixture.</p>
       )}
-      {matches.map((match) => (
+
+      {matches.length > 0 && matchesInRound.length === 0 && (
+        <p className="muted">Todavía no hay partidos cargados para "{round}".</p>
+      )}
+
+      {matchesInRound.map((match) => (
         <MatchCard
           key={match.id}
           match={match}

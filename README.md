@@ -33,7 +33,9 @@ de datos en tiempo real con **Firebase Firestore**. Se hostea gratis en **GitHub
   🥇🥈🥉 para el top 3, y premio estimado si hay un pozo configurado.
 - **Partidos**: lista de partidos del Mundial con pronóstico editable
   (spinners de goles para cada equipo). Se bloquea automáticamente cuando
-  llega la fecha/hora del partido.
+  llega la fecha/hora del partido. Un desplegable permite navegar por fase:
+  Fecha 1, Fecha 2, Fecha 3, Dieciseisavos, Octavos, Cuartos, Semifinales y
+  Final.
 - **Mis Pronósticos**: historial de todos tus pronósticos con el resultado
   oficial y los puntos obtenidos en cada partido.
 - **Premios**: muestra el pozo total, la distribución configurada y el pago
@@ -47,6 +49,9 @@ de datos en tiempo real con **Firebase Firestore**. Se hostea gratis en **GitHub
 - **Panel de Admin** (`/admin`):
   - Cargar el fixture real del Mundial 2026 (Fecha 1 de la fase de grupos)
     con un botón.
+  - "Actualizar fixture desde API": consulta TheSportsDB y agrega los
+    partidos nuevos que se vayan publicando (Fecha 2, Fecha 3, llaves de
+    eliminación directa) sin tocar los partidos ni pronósticos existentes.
   - Cargar/editar manualmente el resultado oficial de cada partido si hace
     falta (esto también recalcula los puntos de todos los pronósticos para
     ese partido y el total de cada jugador).
@@ -244,6 +249,17 @@ Funcionamiento (`src/hooks/useAutoSyncResults.ts`):
 > logueado como admin. Si querés cargar un resultado a mano (por ejemplo si
 > TheSportsDB todavía no lo actualizó), podés seguir haciéndolo desde la
 > tabla de partidos del panel de Admin.
+
+### Cargar fechas y fases siguientes
+
+Al día de hoy TheSportsDB sólo publica la Fecha 1 de la fase de grupos. A
+medida que se confirmen la Fecha 2, la Fecha 3 y las llaves de eliminación
+directa (Dieciseisavos, Octavos, Cuartos, Semifinales, Final), el admin puede
+ir al panel de Admin y tocar **"Actualizar fixture desde API"**: la app
+vuelve a consultar `eventsseason.php` y agrega como partidos nuevos sólo los
+que todavía no estén en Firestore (comparando por `externalId`), sin afectar
+los partidos ni pronósticos ya cargados. Cada partido nuevo se clasifica en
+su fase (`round`) según el `intRound` que devuelve TheSportsDB.
 
 ---
 

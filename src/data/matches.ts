@@ -1,9 +1,12 @@
+import type { Round } from '../types';
+
 export interface SeedMatch {
   teamA: string;
   teamB: string;
   /** ISO 8601 datetime string (UTC) */
   datetime: string;
   stage: string;
+  round: Round;
   /** TheSportsDB event ID (idEvent), used to auto-sync the official result */
   externalId: string;
 }
@@ -18,6 +21,7 @@ export const seedMatches: SeedMatch[] = [
     teamB: 'Sudáfrica',
     datetime: '2026-06-11T19:00:00Z',
     stage: 'Grupo A',
+    round: 'Fecha 1',
     externalId: '2391728',
   },
   {
@@ -25,6 +29,7 @@ export const seedMatches: SeedMatch[] = [
     teamB: 'República Checa',
     datetime: '2026-06-12T02:00:00Z',
     stage: 'Grupo A',
+    round: 'Fecha 1',
     externalId: '2461103',
   },
   {
@@ -32,6 +37,7 @@ export const seedMatches: SeedMatch[] = [
     teamB: 'Bosnia y Herzegovina',
     datetime: '2026-06-12T19:00:00Z',
     stage: 'Grupo B',
+    round: 'Fecha 1',
     externalId: '2461104',
   },
   {
@@ -39,6 +45,7 @@ export const seedMatches: SeedMatch[] = [
     teamB: 'Paraguay',
     datetime: '2026-06-13T01:00:00Z',
     stage: 'Grupo D',
+    round: 'Fecha 1',
     externalId: '2391729',
   },
   {
@@ -46,6 +53,7 @@ export const seedMatches: SeedMatch[] = [
     teamB: 'Suiza',
     datetime: '2026-06-13T19:00:00Z',
     stage: 'Grupo B',
+    round: 'Fecha 1',
     externalId: '2391732',
   },
   {
@@ -53,6 +61,7 @@ export const seedMatches: SeedMatch[] = [
     teamB: 'Marruecos',
     datetime: '2026-06-13T22:00:00Z',
     stage: 'Grupo C',
+    round: 'Fecha 1',
     externalId: '2391730',
   },
   {
@@ -60,6 +69,7 @@ export const seedMatches: SeedMatch[] = [
     teamB: 'Escocia',
     datetime: '2026-06-14T01:00:00Z',
     stage: 'Grupo C',
+    round: 'Fecha 1',
     externalId: '2391731',
   },
   {
@@ -67,6 +77,7 @@ export const seedMatches: SeedMatch[] = [
     teamB: 'Turquía',
     datetime: '2026-06-14T04:00:00Z',
     stage: 'Grupo D',
+    round: 'Fecha 1',
     externalId: '2461105',
   },
   {
@@ -74,6 +85,7 @@ export const seedMatches: SeedMatch[] = [
     teamB: 'Curazao',
     datetime: '2026-06-14T17:00:00Z',
     stage: 'Grupo E',
+    round: 'Fecha 1',
     externalId: '2391733',
   },
   {
@@ -81,6 +93,7 @@ export const seedMatches: SeedMatch[] = [
     teamB: 'Japón',
     datetime: '2026-06-14T20:00:00Z',
     stage: 'Grupo F',
+    round: 'Fecha 1',
     externalId: '2391735',
   },
   {
@@ -88,6 +101,7 @@ export const seedMatches: SeedMatch[] = [
     teamB: 'Ecuador',
     datetime: '2026-06-14T23:00:00Z',
     stage: 'Grupo E',
+    round: 'Fecha 1',
     externalId: '2391734',
   },
   {
@@ -95,6 +109,7 @@ export const seedMatches: SeedMatch[] = [
     teamB: 'Túnez',
     datetime: '2026-06-15T02:00:00Z',
     stage: 'Grupo F',
+    round: 'Fecha 1',
     externalId: '2461106',
   },
   {
@@ -102,6 +117,7 @@ export const seedMatches: SeedMatch[] = [
     teamB: 'Cabo Verde',
     datetime: '2026-06-15T16:00:00Z',
     stage: 'Grupo H',
+    round: 'Fecha 1',
     externalId: '2391739',
   },
   {
@@ -109,6 +125,7 @@ export const seedMatches: SeedMatch[] = [
     teamB: 'Egipto',
     datetime: '2026-06-15T19:00:00Z',
     stage: 'Grupo G',
+    round: 'Fecha 1',
     externalId: '2391736',
   },
   {
@@ -116,6 +133,7 @@ export const seedMatches: SeedMatch[] = [
     teamB: 'Uruguay',
     datetime: '2026-06-15T22:00:00Z',
     stage: 'Grupo H',
+    round: 'Fecha 1',
     externalId: '2391738',
   },
 ];

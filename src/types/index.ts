@@ -14,12 +14,23 @@ export interface MatchResult {
   away: number;
 }
 
+export type Round =
+  | 'Fecha 1'
+  | 'Fecha 2'
+  | 'Fecha 3'
+  | 'Dieciseisavos de Final'
+  | 'Octavos de Final'
+  | 'Cuartos de Final'
+  | 'Semifinales'
+  | 'Final';
+
 export interface Match {
   id: string;
   teamA: string;
   teamB: string;
   datetime: Timestamp;
   stage: string;
+  round: Round;
   result?: MatchResult | null;
   locked: boolean;
   /** TheSportsDB event ID, used to auto-sync the official result */

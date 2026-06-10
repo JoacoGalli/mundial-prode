@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Loader2, Trophy, Upload } from 'lucide-react';
-import { subscribeToMatches, seedMatchesToFirestore } from '../services/matches';
+import { Loader2, RefreshCw, Trophy, Upload } from 'lucide-react';
+import { subscribeToMatches, seedMatchesToFirestore, syncFixtureFromApi } from '../services/matches';
 import { subscribeToLeaderboard } from '../services/users';
 import { useAuth } from '../contexts/AuthContext';
 import { calculateWinners } from '../utils/prizes';
@@ -18,6 +18,8 @@ export default function Admin() {
   const [matches, setMatches] = useState<Match[] | null>(null);
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [seeding, setSeeding] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [syncMessage, setSyncMessage] = useState<string | null>(null);
   const [winners, setWinners] = useState<RankedUser[] | null>(null);
 
   useEffect(() => {
@@ -42,6 +44,23 @@ export default function Admin() {
     }
   };
 
+  const handleSync = async () => {
+    setSyncing(true);
+    setSyncMessage(null);
+    try {
+      const added = await syncFixtureFromApi();
+      setSyncMessage(
+        added === 0
+          ? 'No hay partidos nuevos: TheSportsDB todavía no publicó más fechas.'
+          : `Se agregaron ${added} partido(s) nuevo(s) desde TheSportsDB.`
+      );
+    } catch {
+      setSyncMessage('No se pudo conectar con TheSportsDB. Probá de nuevo más tarde.');
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   const handleCalculateWinners = () => {
     setWinners(calculateWinners(users, settings));
   };
@@ -55,14 +74,28 @@ export default function Admin() {
           <div>
             <h3 className="muted">Fixture</h3>
             <p className="muted" style={{ fontSize: '0.85rem', margin: 0 }}>
-              Cargá el fixture del Mundial 2026 (Fecha 1, fase de grupos) si todavía no hay partidos.
+              Cargá el fixture del Mundial 2026 (Fecha 1, fase de grupos) si todavía no hay
+              partidos. Cuando TheSportsDB publique la Fecha 2, la Fecha 3 o las llaves de
+              eliminación directa, usá "Actualizar fixture desde API" para sumarlos sin
+              perder los pronósticos ya cargados.
             </p>
           </div>
-          <button className="btn btn-secondary" onClick={handleSeed} disabled={seeding}>
-            {seeding ? <Loader2 size={16} className="spin" /> : <Upload size={16} />}
-            Cargar fixture del Mundial 2026
-          </button>
+          <div className="flex gap-sm">
+            <button className="btn btn-secondary" onClick={handleSeed} disabled={seeding}>
+              {seeding ? <Loader2 size={16} className="spin" /> : <Upload size={16} />}
+              Cargar fixture del Mundial 2026
+            </button>
+            <button className="btn btn-secondary" onClick={handleSync} disabled={syncing}>
+              {syncing ? <Loader2 size={16} className="spin" /> : <RefreshCw size={16} />}
+              Actualizar fixture desde API
+            </button>
+          </div>
         </div>
+        {syncMessage && (
+          <p className="muted" style={{ marginTop: '0.75rem', marginBottom: 0, fontSize: '0.85rem' }}>
+            {syncMessage}
+          </p>
+        )}
       </div>
 
       <div className="card section" style={{ overflowX: 'auto' }}>
