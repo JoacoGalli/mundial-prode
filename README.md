@@ -239,7 +239,8 @@ gratuita (key `3`, sin necesidad de registro).
 
 Funcionamiento (`src/hooks/useAutoSyncResults.ts`):
 
-1. Cada vez que un **admin** abre la app, el hook revisa todos los partidos.
+1. Cada vez que un **admin** abre la app, y después cada **2 horas** mientras
+   la deje abierta, el hook revisa todos los partidos.
 2. Para los que ya arrancaron (`locked` o `datetime` pasada) y todavía no
    tienen `result` cargado, consulta
    `GET https://www.thesportsdb.com/api/v1/json/3/lookupevent.php?id={externalId}`.
@@ -247,24 +248,30 @@ Funcionamiento (`src/hooks/useAutoSyncResults.ts`):
    se llama a `setMatchResult(matchId, result)` automáticamente — esto marca
    el partido como `locked` y recalcula los puntos de todos los pronósticos
    y el `totalPoints` de cada jugador.
-4. Cada partido se chequea una sola vez por sesión (no se vuelve a consultar
-   si ya tiene resultado).
+4. Si un partido todavía no tiene resultado en TheSportsDB se vuelve a
+   consultar en el siguiente ciclo (cada 2 horas), hasta que aparezca.
+5. En el mismo ciclo de 2 horas también se ejecuta automáticamente
+   "Actualizar fixture desde API" (ver más abajo), así no hace falta
+   acordarse de cargar la siguiente fecha a mano.
 
 > ⚠️ Esto requiere que un admin tenga la app abierta en algún momento después
-> de que termine un partido para que se dispare la sincronización (no hay
-> backend/cron). Si necesitás forzarlo, basta con recargar la página estando
-> logueado como admin. Si querés cargar un resultado a mano (por ejemplo si
-> TheSportsDB todavía no lo actualizó), podés seguir haciéndolo desde la
-> tabla de partidos del panel de Admin.
+> de que termine un partido (o pase el ciclo de 2hs) para que se dispare la
+> sincronización (no hay backend/cron, es Spark/gratis). Si necesitás
+> forzarlo, basta con recargar la página estando logueado como admin. Si
+> querés cargar un resultado a mano (por ejemplo si TheSportsDB todavía no lo
+> actualizó), podés seguir haciéndolo desde la tabla de partidos del panel de
+> Admin.
 
 ### Cargar fechas y fases siguientes
 
 Al día de hoy TheSportsDB sólo publica la Fecha 1 de la fase de grupos. A
 medida que se confirmen la Fecha 2, la Fecha 3 y las llaves de eliminación
-directa (Dieciseisavos, Octavos, Cuartos, Semifinales, Final), el admin puede
-ir al panel de Admin y tocar **"Actualizar fixture desde API"**: la app
-vuelve a consultar `eventsseason.php` y agrega como partidos nuevos sólo los
-que todavía no estén en Firestore (comparando por `externalId`), sin afectar
+directa (Dieciseisavos, Octavos, Cuartos, Semifinales, Final), un admin con la
+app abierta las va a recibir automáticamente (cada 2 horas, ver arriba). Si
+no querés esperar, también podés ir al panel de Admin y tocar
+**"Actualizar fixture desde API"** para forzarlo: la app vuelve a consultar
+`eventsseason.php` y agrega como partidos nuevos sólo los que todavía no estén
+en Firestore (comparando por `externalId`), sin afectar
 los partidos ni pronósticos ya cargados. Cada partido nuevo se clasifica en
 su fase (`round`) según el `intRound` que devuelve TheSportsDB.
 
