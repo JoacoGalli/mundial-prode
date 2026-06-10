@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Navigate } from 'react-router-dom';
 import { Goal } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -16,9 +17,13 @@ function errorMessage(code?: string): string {
 }
 
 export default function Login() {
-  const { signInWithGoogle } = useAuth();
+  const { user, signInWithGoogle } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  if (user) {
+    return <Navigate to="/" replace />;
+  }
 
   const handleLogin = async () => {
     setLoading(true);

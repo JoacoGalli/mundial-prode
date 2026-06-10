@@ -49,27 +49,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      // Ensure /users/{uid} exists
-      const userRef = doc(db, 'users', firebaseUser.uid);
-      const userSnap = await getDoc(userRef);
-      if (!userSnap.exists()) {
-        await setDoc(userRef, {
-          name: firebaseUser.displayName ?? 'Jugador',
-          email: firebaseUser.email ?? '',
-          photoURL: firebaseUser.photoURL ?? '',
-          totalPoints: 0,
-          joinedAt: serverTimestamp(),
-        });
-      }
+      try {
+        // Ensure /users/{uid} exists
+        const userRef = doc(db, 'users', firebaseUser.uid);
+        const userSnap = await getDoc(userRef);
+        if (!userSnap.exists()) {
+          await setDoc(userRef, {
+            name: firebaseUser.displayName ?? 'Jugador',
+            email: firebaseUser.email ?? '',
+            photoURL: firebaseUser.photoURL ?? '',
+            totalPoints: 0,
+            joinedAt: serverTimestamp(),
+          });
+        }
 
-      // Ensure /config/settings exists. The first user to sign in becomes admin.
-      const settingsRef = doc(db, 'config', 'settings');
-      const settingsSnap = await getDoc(settingsRef);
-      if (!settingsSnap.exists()) {
-        await setDoc(settingsRef, {
-          ...DEFAULT_SETTINGS,
-          adminUIDs: [firebaseUser.uid],
-        });
+        // Ensure /config/settings exists. The first user to sign in becomes admin.
+        const settingsRef = doc(db, 'config', 'settings');
+        const settingsSnap = await getDoc(settingsRef);
+        if (!settingsSnap.exists()) {
+          await setDoc(settingsRef, {
+            ...DEFAULT_SETTINGS,
+            adminUIDs: [firebaseUser.uid],
+          });
+        }
+      } catch (err) {
+        console.error('Error inicializando perfil/config en Firestore:', err);
       }
 
       setLoading(false);
