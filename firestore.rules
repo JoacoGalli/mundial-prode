@@ -50,7 +50,7 @@ service cloud.firestore {
       allow read: if isSignedIn();
 
       allow create, update: if isSignedIn() && request.auth.uid == uid &&
-        !get(/databases/$(database)/documents/config/settings).data.championPicksLocked;
+        get(/databases/$(database)/documents/config/settings).data.championPicksLocked != true;
 
       allow write: if isAdmin();
 
