@@ -1,86 +1,121 @@
 export interface SeedMatch {
   teamA: string;
   teamB: string;
-  /** ISO 8601 datetime string (local time of the host stadium, stored as UTC) */
+  /** ISO 8601 datetime string (UTC) */
   datetime: string;
   stage: string;
+  /** TheSportsDB event ID (idEvent), used to auto-sync the official result */
+  externalId: string;
 }
 
 /**
- * Placeholder group-stage fixtures for the FIFA World Cup 2026 (USA/Canada/Mexico).
- * Dates/teams are illustrative placeholders for seeding the prediction game.
+ * Real fixtures for the FIFA World Cup 2026 group stage, matchday 1
+ * (source: TheSportsDB, league id 4429, season 2026).
  */
 export const seedMatches: SeedMatch[] = [
   {
     teamA: 'México',
-    teamB: 'Polonia',
-    datetime: '2026-06-11T19:00:00-06:00',
+    teamB: 'Sudáfrica',
+    datetime: '2026-06-11T19:00:00Z',
     stage: 'Grupo A',
+    externalId: '2391728',
   },
   {
-    teamA: 'Estados Unidos',
-    teamB: 'Gales',
-    datetime: '2026-06-12T16:00:00-04:00',
-    stage: 'Grupo B',
-  },
-  {
-    teamA: 'Argentina',
-    teamB: 'Arabia Saudita',
-    datetime: '2026-06-12T13:00:00-04:00',
-    stage: 'Grupo C',
+    teamA: 'Corea del Sur',
+    teamB: 'República Checa',
+    datetime: '2026-06-12T02:00:00Z',
+    stage: 'Grupo A',
+    externalId: '2461103',
   },
   {
     teamA: 'Canadá',
-    teamB: 'Bélgica',
-    datetime: '2026-06-13T18:00:00-04:00',
+    teamB: 'Bosnia y Herzegovina',
+    datetime: '2026-06-12T19:00:00Z',
+    stage: 'Grupo B',
+    externalId: '2461104',
+  },
+  {
+    teamA: 'Estados Unidos',
+    teamB: 'Paraguay',
+    datetime: '2026-06-13T01:00:00Z',
     stage: 'Grupo D',
+    externalId: '2391729',
+  },
+  {
+    teamA: 'Catar',
+    teamB: 'Suiza',
+    datetime: '2026-06-13T19:00:00Z',
+    stage: 'Grupo B',
+    externalId: '2391732',
   },
   {
     teamA: 'Brasil',
-    teamB: 'Serbia',
-    datetime: '2026-06-13T21:00:00-04:00',
-    stage: 'Grupo E',
+    teamB: 'Marruecos',
+    datetime: '2026-06-13T22:00:00Z',
+    stage: 'Grupo C',
+    externalId: '2391730',
   },
   {
-    teamA: 'Francia',
-    teamB: 'Australia',
-    datetime: '2026-06-14T15:00:00-04:00',
-    stage: 'Grupo F',
+    teamA: 'Haití',
+    teamB: 'Escocia',
+    datetime: '2026-06-14T01:00:00Z',
+    stage: 'Grupo C',
+    externalId: '2391731',
   },
   {
-    teamA: 'España',
-    teamB: 'Costa Rica',
-    datetime: '2026-06-14T18:00:00-04:00',
-    stage: 'Grupo G',
+    teamA: 'Australia',
+    teamB: 'Turquía',
+    datetime: '2026-06-14T04:00:00Z',
+    stage: 'Grupo D',
+    externalId: '2461105',
   },
   {
     teamA: 'Alemania',
-    teamB: 'Japón',
-    datetime: '2026-06-15T12:00:00-04:00',
-    stage: 'Grupo H',
-  },
-  {
-    teamA: 'Portugal',
-    teamB: 'Ghana',
-    datetime: '2026-06-15T15:00:00-04:00',
-    stage: 'Grupo I',
-  },
-  {
-    teamA: 'Inglaterra',
-    teamB: 'Irán',
-    datetime: '2026-06-16T13:00:00-04:00',
-    stage: 'Grupo J',
+    teamB: 'Curazao',
+    datetime: '2026-06-14T17:00:00Z',
+    stage: 'Grupo E',
+    externalId: '2391733',
   },
   {
     teamA: 'Países Bajos',
-    teamB: 'Senegal',
-    datetime: '2026-06-16T16:00:00-04:00',
-    stage: 'Grupo K',
+    teamB: 'Japón',
+    datetime: '2026-06-14T20:00:00Z',
+    stage: 'Grupo F',
+    externalId: '2391735',
   },
   {
-    teamA: 'Croacia',
-    teamB: 'Marruecos',
-    datetime: '2026-06-17T12:00:00-04:00',
-    stage: 'Grupo L',
+    teamA: 'Costa de Marfil',
+    teamB: 'Ecuador',
+    datetime: '2026-06-14T23:00:00Z',
+    stage: 'Grupo E',
+    externalId: '2391734',
+  },
+  {
+    teamA: 'Suecia',
+    teamB: 'Túnez',
+    datetime: '2026-06-15T02:00:00Z',
+    stage: 'Grupo F',
+    externalId: '2461106',
+  },
+  {
+    teamA: 'España',
+    teamB: 'Cabo Verde',
+    datetime: '2026-06-15T16:00:00Z',
+    stage: 'Grupo H',
+    externalId: '2391739',
+  },
+  {
+    teamA: 'Bélgica',
+    teamB: 'Egipto',
+    datetime: '2026-06-15T19:00:00Z',
+    stage: 'Grupo G',
+    externalId: '2391736',
+  },
+  {
+    teamA: 'Arabia Saudita',
+    teamB: 'Uruguay',
+    datetime: '2026-06-15T22:00:00Z',
+    stage: 'Grupo H',
+    externalId: '2391738',
   },
 ];

@@ -38,11 +38,18 @@ de datos en tiempo real con **Firebase Firestore**. Se hostea gratis en **GitHub
   oficial y los puntos obtenidos en cada partido.
 - **Premios**: muestra el pozo total, la distribución configurada y el pago
   estimado por posición según la tabla actual.
+- **Resultados automáticos**: los partidos se cargan con su ID de evento de
+  [TheSportsDB](https://www.thesportsdb.com/). Cada vez que un admin abre la
+  app, se consulta TheSportsDB para los partidos ya jugados sin resultado
+  cargado y, si ya finalizaron, se aplica el resultado solo — esto dispara el
+  recálculo automático de puntos de todos los pronósticos. No hace falta
+  cargar resultados a mano.
 - **Panel de Admin** (`/admin`):
-  - Cargar el fixture de ejemplo del Mundial 2026 con un botón.
-  - Cargar el resultado oficial de cada partido (esto recalcula
-    automáticamente los puntos de todos los pronósticos para ese partido y
-    el total de cada jugador).
+  - Cargar el fixture real del Mundial 2026 (Fecha 1 de la fase de grupos)
+    con un botón.
+  - Cargar/editar manualmente el resultado oficial de cada partido si hace
+    falta (esto también recalcula los puntos de todos los pronósticos para
+    ese partido y el total de cada jugador).
   - Bloquear/desbloquear partidos manualmente.
   - Configurar el pozo de premios (monto + moneda ARS/USD) y la distribución
     por puestos, con presets o porcentajes personalizados (deben sumar 100%).
@@ -211,6 +218,35 @@ a cada uno según su posición y la distribución configurada.
 
 ---
 
+## Sincronización automática de resultados
+
+Cada partido seedeado (`src/data/matches.ts`) incluye un `externalId`: el
+`idEvent` del partido en [TheSportsDB](https://www.thesportsdb.com/) (liga
+**FIFA World Cup**, id `4429`, temporada `2026`), usando su API pública
+gratuita (key `3`, sin necesidad de registro).
+
+Funcionamiento (`src/hooks/useAutoSyncResults.ts`):
+
+1. Cada vez que un **admin** abre la app, el hook revisa todos los partidos.
+2. Para los que ya arrancaron (`locked` o `datetime` pasada) y todavía no
+   tienen `result` cargado, consulta
+   `GET https://www.thesportsdb.com/api/v1/json/3/lookupevent.php?id={externalId}`.
+3. Si TheSportsDB ya tiene `intHomeScore`/`intAwayScore` (partido finalizado),
+   se llama a `setMatchResult(matchId, result)` automáticamente — esto marca
+   el partido como `locked` y recalcula los puntos de todos los pronósticos
+   y el `totalPoints` de cada jugador.
+4. Cada partido se chequea una sola vez por sesión (no se vuelve a consultar
+   si ya tiene resultado).
+
+> ⚠️ Esto requiere que un admin tenga la app abierta en algún momento después
+> de que termine un partido para que se dispare la sincronización (no hay
+> backend/cron). Si necesitás forzarlo, basta con recargar la página estando
+> logueado como admin. Si querés cargar un resultado a mano (por ejemplo si
+> TheSportsDB todavía no lo actualizó), podés seguir haciéndolo desde la
+> tabla de partidos del panel de Admin.
+
+---
+
 ## Stack técnico
 
 - [React 19](https://react.dev/) + [Vite](https://vitejs.dev/) + TypeScript
@@ -225,10 +261,11 @@ a cada uno según su posición y la distribución configurada.
 src/
   components/       # UI reutilizable (Layout, MatchCard, ScoreSpinner, admin/...)
   contexts/          # AuthContext (sesión, perfil, settings, rol admin)
-  data/              # Fixture de ejemplo del Mundial 2026
+  data/              # Fixture real del Mundial 2026 (Fecha 1, fase de grupos)
+  hooks/             # useAutoSyncResults (sincronización automática de resultados)
   lib/firebase.ts    # Inicialización de Firebase
   pages/             # Dashboard, Matches, MyPredictions, Prizes, Admin, Login
-  services/          # Acceso a Firestore (matches, predictions, users, settings)
+  services/          # Acceso a Firestore + TheSportsDB (matches, predictions, users, settings, sportsApi)
   types/             # Tipos compartidos (Match, Prediction, UserProfile, ...)
   utils/             # calculatePoints, calculateWinners, formatters
 firestore.rules

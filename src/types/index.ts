@@ -22,6 +22,8 @@ export interface Match {
   stage: string;
   result?: MatchResult | null;
   locked: boolean;
+  /** TheSportsDB event ID, used to auto-sync the official result */
+  externalId?: string;
 }
 
 export interface Prediction {

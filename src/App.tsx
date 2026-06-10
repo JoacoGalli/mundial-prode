@@ -7,8 +7,11 @@ import Matches from './pages/Matches';
 import MyPredictions from './pages/MyPredictions';
 import Prizes from './pages/Prizes';
 import Admin from './pages/Admin';
+import { useAutoSyncResults } from './hooks/useAutoSyncResults';
 
 function App() {
+  useAutoSyncResults();
+
   return (
     <Routes>
       <Route path="/login" element={<Login />} />

@@ -67,7 +67,7 @@ export async function lockMatch(matchId: string, locked: boolean) {
   await updateDoc(doc(db, 'matches', matchId), { locked });
 }
 
-/** Push the placeholder seed fixtures into Firestore (admin only). */
+/** Push the World Cup 2026 group-stage fixtures into Firestore (admin only). */
 export async function seedMatchesToFirestore() {
   const now = Date.now();
   const batch = writeBatch(db);
@@ -81,6 +81,7 @@ export async function seedMatchesToFirestore() {
       stage: m.stage,
       result: null,
       locked: datetime.toMillis() < now,
+      externalId: m.externalId,
     });
   });
   await batch.commit();
