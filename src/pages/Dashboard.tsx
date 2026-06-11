@@ -1,18 +1,25 @@
 import { useEffect, useState } from 'react';
 import { subscribeToLeaderboard } from '../services/users';
 import { subscribeToAllChampionPicks } from '../services/championPicks';
+import { subscribeToAllGroups, subscribeToGroupMembers, subscribeToMyMemberships } from '../services/groups';
 import { useAuth } from '../contexts/AuthContext';
 import { buildLeaderboardEntries, calculateWinners } from '../utils/prizes';
 import { formatCurrency } from '../utils/format';
 import LoadingSpinner from '../components/LoadingSpinner';
-import type { ChampionPick, UserProfile } from '../types';
+import type { ChampionPick, Group, GroupMember, UserProfile } from '../types';
 
 const MEDALS = ['🥇', '🥈', '🥉'];
+const GENERAL = 'general';
 
 export default function Dashboard() {
   const { user, settings } = useAuth();
   const [users, setUsers] = useState<UserProfile[] | null>(null);
   const [picks, setPicks] = useState<ChampionPick[]>([]);
+  const [allGroups, setAllGroups] = useState<Group[]>([]);
+  const [myGroupIds, setMyGroupIds] = useState<string[]>([]);
+  const [groupMembers, setGroupMembers] = useState<GroupMember[]>([]);
+  const [selectedGroupId, setSelectedGroupId] = useState<string>(GENERAL);
+  const [hasDefaulted, setHasDefaulted] = useState(false);
 
   useEffect(() => {
     const unsubscribe = subscribeToLeaderboard(setUsers);
@@ -24,16 +31,75 @@ export default function Dashboard() {
     return () => unsubscribe();
   }, []);
 
+  useEffect(() => {
+    const unsubscribe = subscribeToAllGroups(setAllGroups);
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    if (!user) return;
+    const unsubscribe = subscribeToMyMemberships(user.uid, (rows) => {
+      setMyGroupIds(rows.filter((r) => r.status === 'approved').map((r) => r.groupId));
+    });
+    return () => unsubscribe();
+  }, [user]);
+
+  const myGroups = allGroups.filter((g) => myGroupIds.includes(g.id));
+
+  // Default to the user's first group as soon as it's known, but only once,
+  // so it doesn't override a selection the user already made.
+  useEffect(() => {
+    if (!hasDefaulted && myGroups.length > 0) {
+      setSelectedGroupId(myGroups[0].id);
+      setHasDefaulted(true);
+    }
+  }, [myGroups, hasDefaulted]);
+
+  useEffect(() => {
+    if (selectedGroupId === GENERAL) {
+      setGroupMembers([]);
+      return;
+    }
+    const unsubscribe = subscribeToGroupMembers(selectedGroupId, setGroupMembers);
+    return () => unsubscribe();
+  }, [selectedGroupId]);
+
   if (!users || !settings) return <LoadingSpinner />;
 
+  const selectedGroup = myGroups.find((g) => g.id === selectedGroupId) ?? null;
   const picksByUid = Object.fromEntries(picks.map((p) => [p.uid, p]));
-  const entries = buildLeaderboardEntries(users, picksByUid, settings.champion, settings.championBonus);
-  const ranked = calculateWinners(entries, settings);
-  const hasPrizePool = settings.prizePool > 0;
+
+  const scopedUsers = selectedGroup
+    ? users.filter((u) =>
+        groupMembers.some((m) => m.uid === u.uid && m.status === 'approved')
+      )
+    : users;
+
+  const prizeConfig = selectedGroup ?? settings;
+  const entries = buildLeaderboardEntries(scopedUsers, picksByUid, settings.champion, prizeConfig.championBonus);
+  const ranked = calculateWinners(entries, prizeConfig);
+  const hasPrizePool = prizeConfig.prizePool > 0;
 
   return (
     <div className="page">
-      <h1 className="page-title">Tabla de Posiciones</h1>
+      <div className="flex-between" style={{ flexWrap: 'wrap', gap: '0.5rem', marginBottom: '1rem' }}>
+        <h1 className="page-title" style={{ marginBottom: 0 }}>Tabla de Posiciones</h1>
+        {myGroups.length > 0 && (
+          <select
+            className="input"
+            value={selectedGroupId}
+            onChange={(e) => setSelectedGroupId(e.target.value)}
+            style={{ width: 'auto' }}
+          >
+            <option value={GENERAL}>General</option>
+            {myGroups.map((g) => (
+              <option key={g.id} value={g.id}>
+                {g.name}
+              </option>
+            ))}
+          </select>
+        )}
+      </div>
 
       <div className="card">
         <table>
@@ -63,13 +129,17 @@ export default function Dashboard() {
                 </td>
                 <td>{u.totalPoints}</td>
                 {hasPrizePool && (
-                  <td>{u.prize > 0 ? formatCurrency(u.prize, settings.currency) : '—'}</td>
+                  <td>{u.prize > 0 ? formatCurrency(u.prize, prizeConfig.currency) : '—'}</td>
                 )}
               </tr>
             ))}
           </tbody>
         </table>
-        {users.length === 0 && <p className="muted center">Todavía no hay jugadores registrados.</p>}
+        {ranked.length === 0 && (
+          <p className="muted center">
+            {selectedGroup ? 'Todavía no hay miembros aprobados en este grupo.' : 'Todavía no hay jugadores registrados.'}
+          </p>
+        )}
       </div>
     </div>
   );
