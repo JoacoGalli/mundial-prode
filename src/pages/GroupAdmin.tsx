@@ -1,11 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Link, Navigate, useParams } from 'react-router-dom';
-import { Check, Copy, Loader2, RefreshCw, Trash2, X } from 'lucide-react';
+import { Check, Copy, Loader2, RefreshCw, Trash2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import {
-  approveMember,
   regenerateInviteCode,
-  rejectMember,
   removeMember,
   subscribeToGroup,
   subscribeToGroupMembers,
@@ -24,7 +22,8 @@ export default function GroupAdmin() {
   const [savingName, setSavingName] = useState(false);
   const [bonus, setBonus] = useState(0);
   const [savingBonus, setSavingBonus] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
+  const [copiedCode, setCopiedCode] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
 
   useEffect(() => {
@@ -49,7 +48,6 @@ export default function GroupAdmin() {
   if (!group || !groupId) return <Navigate to="/groups" replace />;
   if (!user || !group.adminUIDs.includes(user.uid)) return <Navigate to={`/groups/${groupId}`} replace />;
 
-  const pending = members.filter((m) => m.status === 'pending');
   const approved = members.filter((m) => m.status === 'approved');
   const inviteLink = `${window.location.origin}${import.meta.env.BASE_URL}#/join/${group.inviteCode}`;
 
@@ -72,10 +70,16 @@ export default function GroupAdmin() {
     }
   };
 
-  const handleCopy = async () => {
+  const handleCopyLink = async () => {
     await navigator.clipboard.writeText(inviteLink);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
+    setCopiedLink(true);
+    setTimeout(() => setCopiedLink(false), 1500);
+  };
+
+  const handleCopyCode = async () => {
+    await navigator.clipboard.writeText(group.inviteCode);
+    setCopiedCode(true);
+    setTimeout(() => setCopiedCode(false), 1500);
   };
 
   const handleRegenerate = async () => {
@@ -109,16 +113,28 @@ export default function GroupAdmin() {
       </div>
 
       <div className="card section">
-        <h3 className="muted" style={{ marginBottom: '0.75rem' }}>Link de invitación</h3>
+        <h3 className="muted" style={{ marginBottom: '0.75rem' }}>Invitar gente</h3>
         <p className="muted" style={{ fontSize: '0.85rem', marginTop: 0 }}>
-          Compartilo con quienes quieras invitar. Cuando alguien lo abra, va a poder solicitar
-          unirse al grupo y vos vas a tener que aprobarlo más abajo.
+          Cualquiera con el link o el código se une al grupo al instante, sin que tengas que
+          aprobar nada.
         </p>
-        <div className="flex gap-sm" style={{ flexWrap: 'wrap', alignItems: 'center' }}>
+        <div className="flex gap-sm" style={{ flexWrap: 'wrap', alignItems: 'center', marginBottom: '0.5rem' }}>
           <input className="input" value={inviteLink} readOnly style={{ flex: '1 1 240px' }} />
-          <button className="btn btn-secondary" onClick={handleCopy}>
-            {copied ? <Check size={16} /> : <Copy size={16} />}
-            {copied ? 'Copiado' : 'Copiar'}
+          <button className="btn btn-secondary" onClick={handleCopyLink}>
+            {copiedLink ? <Check size={16} /> : <Copy size={16} />}
+            {copiedLink ? 'Copiado' : 'Copiar link'}
+          </button>
+        </div>
+        <div className="flex gap-sm" style={{ flexWrap: 'wrap', alignItems: 'center' }}>
+          <input
+            className="input"
+            value={group.inviteCode}
+            readOnly
+            style={{ flex: '1 1 120px', fontFamily: 'monospace', letterSpacing: '0.1em' }}
+          />
+          <button className="btn btn-secondary" onClick={handleCopyCode}>
+            {copiedCode ? <Check size={16} /> : <Copy size={16} />}
+            {copiedCode ? 'Copiado' : 'Copiar código'}
           </button>
           <button className="btn btn-secondary" onClick={handleRegenerate} disabled={regenerating}>
             {regenerating ? <Loader2 size={16} className="spin" /> : <RefreshCw size={16} />}
@@ -153,29 +169,6 @@ export default function GroupAdmin() {
             {savingBonus ? <Loader2 size={16} className="spin" /> : 'Guardar'}
           </button>
         </div>
-      </div>
-
-      <div className="card section">
-        <h3 className="muted" style={{ marginBottom: '0.75rem' }}>Solicitudes pendientes</h3>
-        {pending.length === 0 && <p className="muted">No hay solicitudes pendientes.</p>}
-        {pending.map((m) => (
-          <div key={m.uid} className="flex-between" style={{ marginBottom: '0.5rem' }}>
-            <div className="flex gap-sm" style={{ alignItems: 'center' }}>
-              {m.photoURL && (
-                <img src={m.photoURL} alt={m.name} style={{ width: 28, height: 28, borderRadius: '50%' }} />
-              )}
-              <span>{m.name}</span>
-            </div>
-            <div className="flex gap-sm">
-              <button className="btn btn-success" onClick={() => approveMember(group.id, m.uid)} title="Aprobar">
-                <Check size={16} />
-              </button>
-              <button className="btn btn-danger" onClick={() => rejectMember(group.id, m.uid)} title="Rechazar">
-                <X size={16} />
-              </button>
-            </div>
-          </div>
-        ))}
       </div>
 
       <div className="card section">

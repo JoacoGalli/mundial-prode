@@ -19,6 +19,15 @@ service cloud.firestore {
         request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.adminUIDs;
     }
 
+    // Reading a map field that doesn't exist with dot-notation throws in
+    // Firestore rules (even when wrapped in `!= true`), so check for the
+    // key with `in` first. This treats accounts created before the champion
+    // feature existed (no `championPicksLocked` field yet) as "not locked".
+    function championPicksLocked() {
+      let cfg = get(/databases/$(database)/documents/config/settings).data;
+      return ('championPicksLocked' in cfg) && cfg.championPicksLocked == true;
+    }
+
     // ---- /config/settings ----
     // Everyone signed in can read the config (prize pool, distribution, admin list).
     // The very first authenticated user may CREATE /config/settings (bootstrapping
@@ -55,8 +64,7 @@ service cloud.firestore {
     match /championPicks/{uid} {
       allow read: if isSignedIn();
 
-      allow create, update: if isSignedIn() && request.auth.uid == uid &&
-        get(/databases/$(database)/documents/config/settings).data.championPicksLocked != true;
+      allow create, update: if isSignedIn() && request.auth.uid == uid && !championPicksLocked();
 
       allow write: if isAdmin();
 
@@ -90,19 +98,31 @@ service cloud.firestore {
     // ['groups', groupId], so path[1] is the groupId.
     //
     // Any signed-in user can read membership docs (needed to list a group's
-    // members and to query "my memberships" across groups). A user can
-    // create their own 'pending' join request; group admins can
-    // create/approve/edit any member doc. A user can remove their own
-    // membership (leave) and group admins can remove any member.
+    // members and to query "my memberships" across groups). A user can join
+    // a group themselves (status 'approved') as long as they prove they have
+    // the group's current invite code; this also covers re-joining after a
+    // leftover 'pending' doc from before this feature. Group admins can
+    // create/edit any member doc directly (no code needed). A user can
+    // remove their own membership (leave) and group admins can remove any
+    // member.
     match /{path=**}/members/{uid} {
       allow read: if isSignedIn();
 
-      allow create: if isSignedIn() && (
-        (request.auth.uid == uid && request.resource.data.status == 'pending') ||
-        isGroupAdmin(path[1])
-      );
+      function hasValidInviteCode() {
+        return request.resource.data.inviteCode ==
+          get(/databases/$(database)/documents/groups/$(path[1])).data.inviteCode;
+      }
 
-      allow update: if isGroupAdmin(path[1]);
+      function isSelfJoinWithCode() {
+        return request.auth.uid == uid &&
+          request.resource.data.uid == uid &&
+          request.resource.data.status == 'approved' &&
+          hasValidInviteCode();
+      }
+
+      allow create: if isSignedIn() && (isSelfJoinWithCode() || isGroupAdmin(path[1]));
+
+      allow update: if isSignedIn() && (isSelfJoinWithCode() || isGroupAdmin(path[1]));
 
       allow delete: if isSignedIn() && (request.auth.uid == uid || isGroupAdmin(path[1]));
     }

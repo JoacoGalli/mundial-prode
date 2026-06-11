@@ -115,27 +115,30 @@ export async function findGroupByInviteCode(code: string): Promise<Group | null>
   return toGroup(snap.docs[0]);
 }
 
-/** Creates a 'pending' membership request for `uid` to join `groupId`. */
-export async function requestToJoinGroup(
+/**
+ * Joins `uid` to `groupId` as an approved member, proving authorization by
+ * presenting the group's current invite code (Firestore rules check it
+ * matches `groups/{groupId}.inviteCode`). Having the code or link IS the
+ * authorization, so this requires no admin approval.
+ */
+export async function joinGroupWithCode(
   groupId: string,
+  inviteCode: string,
   uid: string,
   profile: Pick<UserProfile, 'name' | 'photoURL'>
 ) {
-  await setDoc(doc(db, 'groups', groupId, 'members', uid), {
-    uid,
-    name: profile.name,
-    photoURL: profile.photoURL,
-    status: 'pending',
-    joinedAt: serverTimestamp(),
-  });
-}
-
-export async function approveMember(groupId: string, uid: string) {
-  await updateDoc(doc(db, 'groups', groupId, 'members', uid), { status: 'approved' });
-}
-
-export async function rejectMember(groupId: string, uid: string) {
-  await deleteDoc(doc(db, 'groups', groupId, 'members', uid));
+  await setDoc(
+    doc(db, 'groups', groupId, 'members', uid),
+    {
+      uid,
+      name: profile.name,
+      photoURL: profile.photoURL,
+      status: 'approved',
+      inviteCode,
+      joinedAt: serverTimestamp(),
+    },
+    { merge: true }
+  );
 }
 
 export async function removeMember(groupId: string, uid: string) {

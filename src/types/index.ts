@@ -84,5 +84,7 @@ export interface GroupMember {
   name: string;
   photoURL: string;
   status: 'pending' | 'approved';
+  /** Invite code used to join (omitted for the owner, who joins on creation). */
+  inviteCode?: string;
   joinedAt: Timestamp;
 }

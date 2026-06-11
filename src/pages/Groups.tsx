@@ -5,7 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import {
   createGroup,
   findGroupByInviteCode,
-  requestToJoinGroup,
+  joinGroupWithCode,
   subscribeToGroup,
   subscribeToMyMemberships,
 } from '../services/groups';
@@ -55,11 +55,6 @@ export default function Groups() {
     .map((m) => groupsById[m.groupId])
     .filter((g): g is Group => g != null);
 
-  const pending = memberships
-    .filter((m) => m.status === 'pending')
-    .map((m) => groupsById[m.groupId])
-    .filter((g): g is Group => g != null);
-
   const extractCode = (input: string): string => {
     const trimmed = input.trim();
     const idx = trimmed.lastIndexOf('/');
@@ -94,13 +89,9 @@ export default function Groups() {
         navigate(`/groups/${group.id}`);
         return;
       }
-      if (existing?.status === 'pending') {
-        setJoinMessage(`Tu solicitud para unirte a "${group.name}" ya está pendiente de aprobación.`);
-        return;
-      }
-      await requestToJoinGroup(group.id, user.uid, profile);
+      await joinGroupWithCode(group.id, group.inviteCode, user.uid, profile);
       setCode('');
-      setJoinMessage(`Solicitud enviada a "${group.name}". Esperá a que un admin del grupo te apruebe.`);
+      navigate(`/groups/${group.id}`);
     } finally {
       setJoining(false);
     }
@@ -126,17 +117,6 @@ export default function Groups() {
         ))}
       </div>
 
-      {pending.length > 0 && (
-        <div className="card section">
-          <h3 className="muted" style={{ marginBottom: '0.75rem' }}>Solicitudes pendientes</h3>
-          {pending.map((g) => (
-            <p key={g.id} className="muted" style={{ marginBottom: '0.25rem' }}>
-              Pendiente de aprobación en <strong>{g.name}</strong>
-            </p>
-          ))}
-        </div>
-      )}
-
       <div className="card section">
         <h3 className="muted" style={{ marginBottom: '0.75rem' }}>Crear un grupo nuevo</h3>
         <div className="flex gap-sm" style={{ flexWrap: 'wrap' }}>
@@ -157,7 +137,8 @@ export default function Groups() {
       <div className="card section">
         <h3 className="muted" style={{ marginBottom: '0.75rem' }}>Unirme a un grupo</h3>
         <p className="muted" style={{ fontSize: '0.85rem', marginTop: 0 }}>
-          Pegá el código o el link de invitación que te compartió el admin del grupo.
+          Pegá el código o el link de invitación que te compartió el dueño del grupo. Te unís al
+          instante, sin esperar aprobación.
         </p>
         <div className="flex gap-sm" style={{ flexWrap: 'wrap' }}>
           <input
