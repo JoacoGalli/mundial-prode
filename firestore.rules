@@ -39,20 +39,30 @@ service cloud.firestore {
     }
 
     // ---- /matches/{matchId} ----
-    // Everyone signed in can read matches. Only admins can create/edit matches
-    // or enter official results.
+    // Everyone signed in can read matches. Only admins can create/delete
+    // matches or edit their schedule details. Any signed-in user's browser
+    // may sync the live score / official result it gets from the public
+    // sports API (so this works without an admin having the app open), but
+    // only for these specific fields.
     match /matches/{matchId} {
       allow read: if isSignedIn();
       allow write: if isAdmin();
+      allow update: if isSignedIn() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['result', 'locked', 'liveScore', 'liveStatus']);
     }
 
     // ---- /users/{uid} ----
     // Everyone signed in can read the users collection (for the leaderboard).
     // A user can only write their own profile document. Admins may also write
     // user documents so totalPoints can be recalculated after results are entered.
+    // Any signed-in user's browser may also recompute and write `predictionPoints`
+    // for any user, so the auto-sync that finalizes match results works without
+    // an admin having the app open.
     match /users/{uid} {
       allow read: if isSignedIn();
       allow create, update: if isSignedIn() && (request.auth.uid == uid || isAdmin());
+      allow update: if isSignedIn() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['predictionPoints']);
       allow delete: if false;
     }
 
@@ -76,7 +86,10 @@ service cloud.firestore {
     // A user may create/update only their own prediction (docId must start with
     // their own uid) and only while the referenced match is not locked.
     // Admins may write any prediction so points can be recalculated once a
-    // match result is entered.
+    // match result is entered. Any signed-in user's browser may also write
+    // `points`/`scoredAt` on any prediction once its match is locked, so the
+    // auto-sync that finalizes match results works without an admin having
+    // the app open.
     match /predictions/{docId} {
       allow read: if isSignedIn();
 
@@ -86,6 +99,10 @@ service cloud.firestore {
         !get(/databases/$(database)/documents/matches/$(request.resource.data.matchId)).data.locked;
 
       allow write: if isAdmin();
+
+      allow update: if isSignedIn() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['points', 'scoredAt']) &&
+        get(/databases/$(database)/documents/matches/$(resource.data.matchId)).data.locked == true;
 
       allow delete: if false;
     }

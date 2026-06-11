@@ -9,22 +9,23 @@ const RESULTS_INTERVAL_MS = 30 * 1000; // 30 seconds
 const FIXTURES_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
 
 /**
- * For admins: periodically (on load and every 30 seconds while the app stays
- * open) checks matches that have already kicked off but have no official
- * result yet, and looks them up on TheSportsDB by date + team names. While
- * the match is in progress, it updates `liveScore`/`liveStatus` so everyone
- * can see the live score and partial points. Once the match is fully over
- * (including extra time / penalties), it sets the official result, which
- * triggers point recalculation for everyone. It also pulls in any
- * newly-published fixtures (knockout bracket) every 5 minutes so the admin
- * doesn't have to remember to do it manually.
+ * For any signed-in user: periodically (on load and every 30 seconds while
+ * the app stays open) checks matches that have already kicked off but have
+ * no official result yet, and looks them up on TheSportsDB by date + team
+ * names. While the match is in progress, it updates `liveScore`/`liveStatus`
+ * so everyone can see the live score and partial points. Once the match is
+ * fully over (including extra time / penalties), it sets the official
+ * result, which triggers point recalculation for everyone — so this finishes
+ * automatically as soon as anyone has the app open, not just an admin.
+ * Admins additionally pull in any newly-published fixtures (knockout bracket)
+ * every 5 minutes so they don't have to remember to do it manually.
  */
 export function useAutoSyncResults() {
-  const { isAdmin } = useAuth();
+  const { user, isAdmin } = useAuth();
   const matchesRef = useRef<Match[]>([]);
 
   useEffect(() => {
-    if (!isAdmin) return;
+    if (!user) return;
 
     const checkResults = async () => {
       for (const match of matchesRef.current) {
@@ -57,17 +58,20 @@ export function useAutoSyncResults() {
       checkResults();
     });
 
-    syncFixtureFromApi().catch(() => {});
-
     const resultsInterval = setInterval(checkResults, RESULTS_INTERVAL_MS);
-    const fixturesInterval = setInterval(() => {
+
+    let fixturesInterval: ReturnType<typeof setInterval> | undefined;
+    if (isAdmin) {
       syncFixtureFromApi().catch(() => {});
-    }, FIXTURES_INTERVAL_MS);
+      fixturesInterval = setInterval(() => {
+        syncFixtureFromApi().catch(() => {});
+      }, FIXTURES_INTERVAL_MS);
+    }
 
     return () => {
       unsubscribe();
       clearInterval(resultsInterval);
-      clearInterval(fixturesInterval);
+      if (fixturesInterval) clearInterval(fixturesInterval);
     };
-  }, [isAdmin]);
+  }, [user, isAdmin]);
 }
