@@ -1,0 +1,115 @@
+import { Timestamp } from 'firebase/firestore';
+import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import MatchCard from './MatchCard';
+import type { Match, Prediction, UserProfile } from '../types';
+
+const subscribeToMatchPredictions = vi.fn();
+
+vi.mock('../services/predictions', () => ({
+  subscribeToMatchPredictions: (...args: unknown[]) => subscribeToMatchPredictions(...args),
+}));
+
+function makeMatch(overrides: Partial<Match> = {}): Match {
+  return {
+    id: 'match-1',
+    teamA: 'Argentina',
+    teamB: 'Brasil',
+    datetime: Timestamp.fromDate(new Date(Date.now() + 1000 * 60 * 60)),
+    stage: 'Grupo A',
+    round: 'Fecha 1',
+    result: null,
+    locked: false,
+    ...overrides,
+  };
+}
+
+function makePrediction(overrides: Partial<Prediction> = {}): Prediction {
+  return {
+    id: 'pred-1',
+    uid: 'user-1',
+    matchId: 'match-1',
+    home: 1,
+    away: 0,
+    points: null,
+    scoredAt: null,
+    ...overrides,
+  };
+}
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  subscribeToMatchPredictions.mockReturnValue(() => {});
+});
+
+describe('MatchCard', () => {
+  it('shows team names and "vs" when there is no result yet', () => {
+    render(<MatchCard match={makeMatch()} />);
+    expect(screen.getByText('Argentina')).toBeInTheDocument();
+    expect(screen.getByText('Brasil')).toBeInTheDocument();
+    expect(screen.getByText('vs')).toBeInTheDocument();
+  });
+
+  it('shows the official score once the match has a result', () => {
+    render(<MatchCard match={makeMatch({ result: { home: 2, away: 1 }, locked: true })} />);
+    expect(screen.getByText('2 - 1')).toBeInTheDocument();
+  });
+
+  it('shows "Abierto" and a save button for an open match with onSave', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    render(<MatchCard match={makeMatch()} onSave={onSave} />);
+
+    expect(screen.getByText('Abierto')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Guardar' }));
+    expect(onSave).toHaveBeenCalledWith(0, 0);
+  });
+
+  it('shows "Cerrado" and hides the save button for a locked match', () => {
+    render(<MatchCard match={makeMatch({ locked: true })} onSave={vi.fn()} />);
+    expect(screen.getByText('Cerrado')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Guardar' })).not.toBeInTheDocument();
+  });
+
+  it('shows the points earned for a scored prediction', () => {
+    render(
+      <MatchCard
+        match={makeMatch({ result: { home: 1, away: 0 }, locked: true })}
+        prediction={makePrediction({ home: 1, away: 0, points: 12 })}
+      />
+    );
+    expect(screen.getByText('+12 pts')).toBeInTheDocument();
+  });
+
+  it('does not offer to view others\' predictions while the match is still open', () => {
+    render(<MatchCard match={makeMatch()} />);
+    expect(screen.queryByRole('button', { name: /ver pronósticos/i })).not.toBeInTheDocument();
+  });
+
+  it('lets users reveal everyone\'s predictions once the match is locked', async () => {
+    const usersById: Record<string, UserProfile> = {
+      'user-1': { uid: 'user-1', name: 'Beto', email: '', photoURL: '', predictionPoints: 0, joinedAt: Timestamp.now() },
+      'user-2': { uid: 'user-2', name: 'Ana', email: '', photoURL: '', predictionPoints: 0, joinedAt: Timestamp.now() },
+    };
+    subscribeToMatchPredictions.mockImplementation((_matchId: string, cb: (preds: Prediction[]) => void) => {
+      cb([
+        makePrediction({ uid: 'user-1', home: 2, away: 0, points: 7 }),
+        makePrediction({ id: 'pred-2', uid: 'user-2', home: 1, away: 1, points: null }),
+      ]);
+      return () => {};
+    });
+
+    render(<MatchCard match={makeMatch({ locked: true })} usersById={usersById} />);
+
+    await userEvent.click(screen.getByRole('button', { name: /ver pronósticos/i }));
+
+    expect(subscribeToMatchPredictions).toHaveBeenCalledWith('match-1', expect.any(Function));
+
+    // Sorted alphabetically by name: Ana before Beto
+    const names = screen.getAllByText(/^(Ana|Beto)$/).map((el) => el.textContent);
+    expect(names).toEqual(['Ana', 'Beto']);
+    expect(screen.getByText('1 - 1')).toBeInTheDocument();
+    expect(screen.getByText('2 - 0')).toBeInTheDocument();
+    expect(screen.getByText('+7 pts')).toBeInTheDocument();
+  });
+});
