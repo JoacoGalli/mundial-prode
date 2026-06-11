@@ -2,8 +2,9 @@ import { useEffect, useState } from 'react';
 import { ChevronDown, ChevronUp, Lock, Unlock, Users } from 'lucide-react';
 import type { Match, Prediction, UserProfile } from '../types';
 import ScoreSpinner from './ScoreSpinner';
-import { formatDateTime, isMatchLocked } from '../utils/format';
+import { formatDateTime, formatLiveStatus, isMatchLocked } from '../utils/format';
 import { subscribeToMatchPredictions } from '../services/predictions';
+import { calculatePoints } from '../utils/scoring';
 
 interface MatchCardProps {
   match: Match;
@@ -20,6 +21,7 @@ export default function MatchCard({ match, prediction, onChange, usersById }: Ma
 
   const locked = isMatchLocked(match);
   const hasResult = match.result != null;
+  const isLive = !hasResult && match.liveScore != null;
 
   useEffect(() => {
     if (!showPredictions) return;
@@ -48,10 +50,20 @@ export default function MatchCard({ match, prediction, onChange, usersById }: Ma
         <div className="ticket-teams">
           <span className="ticket-team">{match.teamA}</span>
           <span className="ticket-vs">
-            {hasResult ? `${match.result!.home} - ${match.result!.away}` : 'vs'}
+            {hasResult
+              ? `${match.result!.home} - ${match.result!.away}`
+              : isLive
+                ? `${match.liveScore!.home} - ${match.liveScore!.away}`
+                : 'vs'}
           </span>
           <span className="ticket-team">{match.teamB}</span>
         </div>
+
+        {isLive && (
+          <div className="center" style={{ marginTop: '0.25rem' }}>
+            <span className="badge badge-live">🔴 EN VIVO · {formatLiveStatus(match.liveStatus)}</span>
+          </div>
+        )}
 
         <hr className="ticket-divider" />
 
@@ -65,6 +77,11 @@ export default function MatchCard({ match, prediction, onChange, usersById }: Ma
           <div className="ticket-footer-meta">
             {prediction?.points != null && (
               <span className="badge badge-points">+{prediction.points} pts</span>
+            )}
+            {prediction && prediction.points == null && isLive && (
+              <span className="badge badge-points" style={{ opacity: 0.7 }}>
+                +{calculatePoints(prediction, match.liveScore!)} pts (parcial)
+              </span>
             )}
             {locked ? (
               <span className="badge badge-locked">
@@ -113,6 +130,11 @@ export default function MatchCard({ match, prediction, onChange, usersById }: Ma
                           <div className="flex gap-sm" style={{ alignItems: 'center' }}>
                             <span>{p.home} - {p.away}</span>
                             {p.points != null && <span className="badge badge-points">+{p.points} pts</span>}
+                            {p.points == null && isLive && (
+                              <span className="badge badge-points" style={{ opacity: 0.7 }}>
+                                +{calculatePoints(p, match.liveScore!)} pts (parcial)
+                              </span>
+                            )}
                           </div>
                         </div>
                       );

@@ -191,19 +191,26 @@ const FINISHED_STATUSES = new Set([
   'Finished',
 ]);
 
+export interface EventStatus extends MatchResult {
+  /** Raw TheSportsDB status (e.g. "1H", "HT", "2H", "ET", "P", "FT", "AET", "PEN"). */
+  status: string;
+  /** True once the match is fully over, including extra time and penalties. */
+  finished: boolean;
+}
+
 /**
- * Look up the official result of a match on TheSportsDB by date and team
- * names, since the free API doesn't reliably expose every event's ID ahead
- * of time. Tries the given date and the days right before/after it (events
- * are sometimes listed under a neighboring date due to timezone rounding).
- * Returns null if the match hasn't finished yet (including while it's live
- * or in extra time / penalties), or wasn't found.
+ * Look up the current score and status of a match on TheSportsDB by date and
+ * team names, since the free API doesn't reliably expose every event's ID
+ * ahead of time. Tries the given date and the days right before/after it
+ * (events are sometimes listed under a neighboring date due to timezone
+ * rounding). Returns null if the match hasn't kicked off yet (no score) or
+ * wasn't found.
  */
-export async function fetchResultByDateAndTeams(
+export async function fetchEventStatus(
   dateISO: string,
   apiTeamA: string,
   apiTeamB: string
-): Promise<MatchResult | null> {
+): Promise<EventStatus | null> {
   const candidateDates = [dateISO, addDays(dateISO, 1), addDays(dateISO, -1)];
 
   for (const date of candidateDates) {
@@ -220,13 +227,15 @@ export async function fetchResultByDateAndTeams(
     );
     if (!event) continue;
 
-    if (!FINISHED_STATUSES.has(event.strStatus)) return null;
     if (event.intHomeScore == null || event.intAwayScore == null) return null;
 
     const home = parseInt(event.intHomeScore, 10);
     const away = parseInt(event.intAwayScore, 10);
+    const finished = FINISHED_STATUSES.has(event.strStatus);
 
-    return event.strHomeTeam === apiTeamA ? { home, away } : { home: away, away: home };
+    return event.strHomeTeam === apiTeamA
+      ? { home, away, status: event.strStatus, finished }
+      : { home: away, away: home, status: event.strStatus, finished };
   }
 
   return null;

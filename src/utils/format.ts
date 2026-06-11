@@ -13,6 +13,19 @@ export function isMatchLocked(match: { locked: boolean; datetime: Timestamp }): 
   return match.locked || match.datetime.toDate().getTime() <= Date.now();
 }
 
+const LIVE_STATUS_LABELS: Record<string, string> = {
+  '1H': '1er Tiempo',
+  HT: 'Entretiempo',
+  '2H': '2do Tiempo',
+  ET: 'Tiempo Extra',
+  P: 'Penales',
+};
+
+export function formatLiveStatus(status?: string | null): string {
+  if (!status) return 'En vivo';
+  return LIVE_STATUS_LABELS[status] ?? 'En vivo';
+}
+
 export function formatCurrency(amount: number, currency: 'ARS' | 'USD'): string {
   return new Intl.NumberFormat('es-AR', {
     style: 'currency',

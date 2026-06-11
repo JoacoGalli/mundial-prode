@@ -70,6 +70,27 @@ describe('MatchCard', () => {
     expect(screen.getByText('Cerrado')).toBeInTheDocument();
   });
 
+  it('shows the live score and a "EN VIVO" badge while the match is in progress', () => {
+    render(
+      <MatchCard
+        match={makeMatch({ locked: true, liveScore: { home: 1, away: 0 }, liveStatus: '1H' })}
+      />
+    );
+    expect(screen.getByText('1 - 0')).toBeInTheDocument();
+    expect(screen.getByText(/EN VIVO/)).toBeInTheDocument();
+    expect(screen.getByText(/1er Tiempo/)).toBeInTheDocument();
+  });
+
+  it('shows partial points for a prediction while the match is live', () => {
+    render(
+      <MatchCard
+        match={makeMatch({ locked: true, liveScore: { home: 1, away: 0 }, liveStatus: '1H' })}
+        prediction={makePrediction({ home: 1, away: 0, points: null })}
+      />
+    );
+    expect(screen.getByText('+12 pts (parcial)')).toBeInTheDocument();
+  });
+
   it('shows the points earned for a scored prediction', () => {
     render(
       <MatchCard

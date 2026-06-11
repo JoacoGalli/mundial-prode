@@ -411,6 +411,17 @@ tr.me {
   color: var(--color-gold);
 }
 
+.badge-live {
+  background: rgba(255, 82, 82, 0.15);
+  color: var(--color-red);
+  animation: live-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes live-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
 .center {
   text-align: center;
 }

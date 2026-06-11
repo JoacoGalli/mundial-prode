@@ -36,6 +36,10 @@ export interface Match {
   /** Team names as TheSportsDB reports them, used to auto-sync the official result */
   apiTeamA?: string;
   apiTeamB?: string;
+  /** Live score from TheSportsDB while the match is in progress. Cleared once `result` is set. */
+  liveScore?: MatchResult | null;
+  /** Raw TheSportsDB status while live (e.g. "1H", "HT", "2H", "ET", "P"). Cleared once `result` is set. */
+  liveStatus?: string | null;
 }
 
 export interface Prediction {

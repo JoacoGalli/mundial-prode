@@ -35,7 +35,7 @@ export function subscribeToMatches(callback: (matches: Match[]) => void) {
  */
 export async function setMatchResult(matchId: string, result: MatchResult) {
   const matchRef = doc(db, 'matches', matchId);
-  await updateDoc(matchRef, { result, locked: true });
+  await updateDoc(matchRef, { result, locked: true, liveScore: null, liveStatus: null });
 
   // Recalculate points for all predictions on this match
   const predsQuery = query(collection(db, 'predictions'), where('matchId', '==', matchId));
@@ -70,6 +70,11 @@ export async function recalculateUserTotalPoints(uid: string) {
 
 export async function lockMatch(matchId: string, locked: boolean) {
   await updateDoc(doc(db, 'matches', matchId), { locked });
+}
+
+/** Update the live score/status shown while a match is in progress (admin sync only). */
+export async function updateLiveScore(matchId: string, liveScore: MatchResult, liveStatus: string) {
+  await updateDoc(doc(db, 'matches', matchId), { liveScore, liveStatus });
 }
 
 /** Builds a key that identifies a fixture regardless of home/away order. */
