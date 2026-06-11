@@ -3,6 +3,7 @@ import { subscribeToLeaderboard } from '../services/users';
 import { subscribeToAllChampionPicks } from '../services/championPicks';
 import { subscribeToAllGroups, subscribeToGroupMembers, subscribeToMyMemberships } from '../services/groups';
 import { useAuth } from '../contexts/AuthContext';
+import { useLivePoints } from '../hooks/useLivePoints';
 import { buildLeaderboardEntries, calculateWinners } from '../utils/prizes';
 import { formatCurrency } from '../utils/format';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -13,6 +14,7 @@ const GENERAL = 'general';
 
 export default function Dashboard() {
   const { user, settings } = useAuth();
+  const { livePointsByUid } = useLivePoints();
   const [users, setUsers] = useState<UserProfile[] | null>(null);
   const [picks, setPicks] = useState<ChampionPick[]>([]);
   const [allGroups, setAllGroups] = useState<Group[]>([]);
@@ -76,7 +78,7 @@ export default function Dashboard() {
     : users;
 
   const prizeConfig = selectedGroup ?? settings;
-  const entries = buildLeaderboardEntries(scopedUsers, picksByUid, settings.finalists, prizeConfig.championBonus);
+  const entries = buildLeaderboardEntries(scopedUsers, picksByUid, settings.finalists, prizeConfig.championBonus, livePointsByUid);
   const ranked = calculateWinners(entries, prizeConfig);
   const hasPrizePool = prizeConfig.prizePool > 0;
 
@@ -127,7 +129,14 @@ export default function Dashboard() {
                     <span>{u.name}</span>
                   </div>
                 </td>
-                <td>{u.totalPoints}</td>
+                <td>
+                  {u.totalPoints}
+                  {!!u.livePoints && u.livePoints > 0 && (
+                    <span className="badge badge-live" style={{ marginLeft: '0.4rem' }}>
+                      +{u.livePoints} en vivo
+                    </span>
+                  )}
+                </td>
                 {hasPrizePool && (
                   <td>{u.prize > 0 ? formatCurrency(u.prize, prizeConfig.currency) : '—'}</td>
                 )}

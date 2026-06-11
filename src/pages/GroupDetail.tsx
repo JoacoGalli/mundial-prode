@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { leaveGroup, subscribeToGroup, subscribeToGroupMembers } from '../services/groups';
 import { subscribeToLeaderboard } from '../services/users';
 import { subscribeToAllChampionPicks } from '../services/championPicks';
+import { useLivePoints } from '../hooks/useLivePoints';
 import { buildLeaderboardEntries, calculateWinners } from '../utils/prizes';
 import { formatCurrency } from '../utils/format';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -15,6 +16,7 @@ const MEDALS = ['🥇', '🥈', '🥉'];
 export default function GroupDetail() {
   const { groupId } = useParams<{ groupId: string }>();
   const { user, settings, isAdmin: isGlobalAdmin } = useAuth();
+  const { livePointsByUid } = useLivePoints();
   const [group, setGroup] = useState<Group | null | undefined>(undefined);
   const [members, setMembers] = useState<GroupMember[]>([]);
   const [users, setUsers] = useState<UserProfile[]>([]);
@@ -57,7 +59,7 @@ export default function GroupDetail() {
   const approvedUids = new Set(members.filter((m) => m.status === 'approved').map((m) => m.uid));
   const groupUsers = users.filter((u) => approvedUids.has(u.uid));
   const picksByUid = Object.fromEntries(picks.map((p) => [p.uid, p]));
-  const entries = buildLeaderboardEntries(groupUsers, picksByUid, settings.finalists, group.championBonus);
+  const entries = buildLeaderboardEntries(groupUsers, picksByUid, settings.finalists, group.championBonus, livePointsByUid);
   const ranked = calculateWinners(entries, group);
   const hasPrizePool = group.prizePool > 0;
   const isMember = !!user && members.some((m) => m.uid === user.uid && m.status === 'approved');
@@ -134,7 +136,14 @@ export default function GroupDetail() {
                     <span>{u.name}</span>
                   </div>
                 </td>
-                <td>{u.totalPoints}</td>
+                <td>
+                  {u.totalPoints}
+                  {!!u.livePoints && u.livePoints > 0 && (
+                    <span className="badge badge-live" style={{ marginLeft: '0.4rem' }}>
+                      +{u.livePoints} en vivo
+                    </span>
+                  )}
+                </td>
                 {hasPrizePool && (
                   <td>{u.prize > 0 ? formatCurrency(u.prize, group.currency) : '—'}</td>
                 )}

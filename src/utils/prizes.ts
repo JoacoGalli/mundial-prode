@@ -1,10 +1,13 @@
-import type { ChampionPick } from '../types';
+import type { ChampionPick, Match, MatchResult, Prediction } from '../types';
+import { calculatePoints } from './scoring';
 
 export interface LeaderboardEntry {
   uid: string;
   name: string;
   photoURL: string;
   totalPoints: number;
+  /** Points the user's predictions for currently in-progress matches would earn right now. Already included in `totalPoints`. */
+  livePoints?: number;
 }
 
 export interface RankedUser extends LeaderboardEntry {
@@ -23,19 +26,48 @@ export function getChampionPoints(
   return correct * bonus;
 }
 
-/** Combines each user's prediction points with their (on-the-fly) finalists bonus. */
+/**
+ * For matches currently in progress (have a `liveScore` and no official
+ * `result` yet), sums up the points each user's prediction would earn right
+ * now if the match ended with that score.
+ */
+export function getLivePointsByUid(
+  liveMatches: Pick<Match, 'id' | 'liveScore'>[],
+  predictions: Prediction[]
+): Record<string, number> {
+  const liveScoreByMatchId = new Map<string, MatchResult>();
+  for (const m of liveMatches) {
+    if (m.liveScore != null) liveScoreByMatchId.set(m.id, m.liveScore);
+  }
+
+  const livePointsByUid: Record<string, number> = {};
+  for (const p of predictions) {
+    if (p.points != null) continue;
+    const liveScore = liveScoreByMatchId.get(p.matchId);
+    if (!liveScore) continue;
+    livePointsByUid[p.uid] = (livePointsByUid[p.uid] ?? 0) + calculatePoints(p, liveScore);
+  }
+  return livePointsByUid;
+}
+
+/** Combines each user's prediction points with their (on-the-fly) finalists bonus and live partial points. */
 export function buildLeaderboardEntries(
   users: { uid: string; name: string; photoURL: string; predictionPoints: number }[],
   picksByUid: Record<string, ChampionPick>,
   finalists: string[] | null,
-  championBonus: number
+  championBonus: number,
+  livePointsByUid: Record<string, number> = {}
 ): LeaderboardEntry[] {
-  return users.map((u) => ({
-    uid: u.uid,
-    name: u.name,
-    photoURL: u.photoURL,
-    totalPoints: u.predictionPoints + getChampionPoints(picksByUid[u.uid], finalists, championBonus),
-  }));
+  return users.map((u) => {
+    const livePoints = livePointsByUid[u.uid] ?? 0;
+    return {
+      uid: u.uid,
+      name: u.name,
+      photoURL: u.photoURL,
+      totalPoints: u.predictionPoints + getChampionPoints(picksByUid[u.uid], finalists, championBonus) + livePoints,
+      livePoints,
+    };
+  });
 }
 
 export function calculateWinners(

@@ -1,5 +1,19 @@
 import { describe, expect, it } from 'vitest';
-import { buildLeaderboardEntries, calculateWinners, getChampionPoints } from './prizes';
+import { buildLeaderboardEntries, calculateWinners, getChampionPoints, getLivePointsByUid } from './prizes';
+import type { Prediction } from '../types';
+
+function makePrediction(overrides: Partial<Prediction> = {}): Prediction {
+  return {
+    id: 'pred-1',
+    uid: 'a',
+    matchId: 'm1',
+    home: 0,
+    away: 0,
+    points: null,
+    scoredAt: null,
+    ...overrides,
+  };
+}
 
 describe('getChampionPoints', () => {
   it('returns 0 when the finalists are not decided yet', () => {
@@ -47,6 +61,46 @@ describe('buildLeaderboardEntries', () => {
     const picksByUid = { a: { uid: 'a', teams: ['Argentina', 'España'] } };
     const entries = buildLeaderboardEntries(users, picksByUid, null, 25);
     expect(entries.find((e) => e.uid === 'a')?.totalPoints).toBe(10);
+  });
+
+  it('adds live points to the total and exposes them separately', () => {
+    const livePointsByUid = { a: 12, b: 5 };
+    const entries = buildLeaderboardEntries(users, {}, null, 25, livePointsByUid);
+
+    expect(entries.find((e) => e.uid === 'a')).toMatchObject({ totalPoints: 22, livePoints: 12 });
+    expect(entries.find((e) => e.uid === 'b')).toMatchObject({ totalPoints: 25, livePoints: 5 });
+    expect(entries.find((e) => e.uid === 'c')).toMatchObject({ totalPoints: 5, livePoints: 0 });
+  });
+});
+
+describe('getLivePointsByUid', () => {
+  const liveMatches = [
+    { id: 'm1', liveScore: { home: 2, away: 0 } },
+    { id: 'm2', liveScore: { home: 1, away: 1 } },
+    { id: 'm3', liveScore: null },
+  ];
+
+  it('sums live points per user for predictions on in-progress matches', () => {
+    const predictions = [
+      makePrediction({ uid: 'a', matchId: 'm1', home: 2, away: 0, points: null }), // exact -> 12
+      makePrediction({ uid: 'a', matchId: 'm2', home: 1, away: 0, points: null }), // one score correct -> 2
+      makePrediction({ uid: 'b', matchId: 'm1', home: 1, away: 0, points: null }), // correct winner + one score -> 7
+    ];
+
+    const result = getLivePointsByUid(liveMatches, predictions);
+
+    expect(result.a).toBe(14);
+    expect(result.b).toBe(7);
+  });
+
+  it('ignores predictions that already have final points', () => {
+    const predictions = [makePrediction({ uid: 'a', matchId: 'm1', home: 2, away: 0, points: 12 })];
+    expect(getLivePointsByUid(liveMatches, predictions)).toEqual({});
+  });
+
+  it('ignores predictions for matches without a live score', () => {
+    const predictions = [makePrediction({ uid: 'a', matchId: 'm3', home: 1, away: 1, points: null })];
+    expect(getLivePointsByUid(liveMatches, predictions)).toEqual({});
   });
 });
 

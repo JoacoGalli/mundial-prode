@@ -38,6 +38,25 @@ export function subscribeToMatchPredictions(
   });
 }
 
+/** Every prediction for any of the given matches, e.g. to compute live partial points. */
+export function subscribeToPredictionsForMatches(
+  matchIds: string[],
+  callback: (predictions: Prediction[]) => void
+) {
+  if (matchIds.length === 0) {
+    callback([]);
+    return () => {};
+  }
+  const q = query(collection(db, 'predictions'), where('matchId', 'in', matchIds));
+  return onSnapshot(q, (snap) => {
+    const predictions = snap.docs.map((d) => ({
+      id: d.id,
+      ...(d.data() as Omit<Prediction, 'id'>),
+    }));
+    callback(predictions);
+  });
+}
+
 /** Saves several predictions for `uid` in a single batch, e.g. "save all" for a round. */
 export async function savePredictions(
   uid: string,
