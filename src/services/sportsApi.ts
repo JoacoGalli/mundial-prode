@@ -177,11 +177,27 @@ function addDays(dateISO: string, days: number): string {
 }
 
 /**
+ * Match statuses TheSportsDB uses to mark an event as fully over (including
+ * extra time and penalty shootouts, if any). Anything else (e.g. "1H", "HT",
+ * "2H", "ET", "P", "NS") means the match hasn't finished yet.
+ */
+const FINISHED_STATUSES = new Set([
+  'FT',
+  'AET',
+  'PEN',
+  'AWD',
+  'WO',
+  'Match Finished',
+  'Finished',
+]);
+
+/**
  * Look up the official result of a match on TheSportsDB by date and team
  * names, since the free API doesn't reliably expose every event's ID ahead
  * of time. Tries the given date and the days right before/after it (events
  * are sometimes listed under a neighboring date due to timezone rounding).
- * Returns null if the match hasn't finished yet (or wasn't found).
+ * Returns null if the match hasn't finished yet (including while it's live
+ * or in extra time / penalties), or wasn't found.
  */
 export async function fetchResultByDateAndTeams(
   dateISO: string,
@@ -204,6 +220,7 @@ export async function fetchResultByDateAndTeams(
     );
     if (!event) continue;
 
+    if (!FINISHED_STATUSES.has(event.strStatus)) return null;
     if (event.intHomeScore == null || event.intAwayScore == null) return null;
 
     const home = parseInt(event.intHomeScore, 10);

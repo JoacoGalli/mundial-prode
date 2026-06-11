@@ -5,10 +5,10 @@ import { fetchResultByDateAndTeams } from '../services/sportsApi';
 import { isMatchLocked } from '../utils/format';
 import type { Match } from '../types';
 
-const SYNC_INTERVAL_MS = 2 * 60 * 60 * 1000; // 2 hours
+const SYNC_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
 
 /**
- * For admins: periodically (on load and every 2 hours while the app stays
+ * For admins: periodically (on load and every 5 minutes while the app stays
  * open) checks matches that have already kicked off but have no official
  * result yet, looks them up on TheSportsDB by date + team names, and applies
  * the result automatically (which triggers point recalculation for
