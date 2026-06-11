@@ -7,6 +7,7 @@ import Matches from './pages/Matches';
 import MyPredictions from './pages/MyPredictions';
 import Prizes from './pages/Prizes';
 import Admin from './pages/Admin';
+import HowItWorks from './pages/HowItWorks';
 import Groups from './pages/Groups';
 import GroupDetail from './pages/GroupDetail';
 import GroupAdmin from './pages/GroupAdmin';
@@ -59,6 +60,14 @@ function App() {
               <RequireAdmin>
                 <Admin />
               </RequireAdmin>
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/como-se-puntua"
+          element={
+            <RequireAuth>
+              <HowItWorks />
             </RequireAuth>
           }
         />
