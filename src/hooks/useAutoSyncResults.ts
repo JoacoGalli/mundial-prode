@@ -5,15 +5,17 @@ import { fetchResultByDateAndTeams } from '../services/sportsApi';
 import { isMatchLocked } from '../utils/format';
 import type { Match } from '../types';
 
-const SYNC_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+const RESULTS_INTERVAL_MS = 30 * 1000; // 30 seconds
+const FIXTURES_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
 
 /**
- * For admins: periodically (on load and every 5 minutes while the app stays
+ * For admins: periodically (on load and every 30 seconds while the app stays
  * open) checks matches that have already kicked off but have no official
  * result yet, looks them up on TheSportsDB by date + team names, and applies
  * the result automatically (which triggers point recalculation for
  * everyone). It also pulls in any newly-published fixtures (knockout
- * bracket) so the admin doesn't have to remember to do it manually.
+ * bracket) every 5 minutes so the admin doesn't have to remember to do it
+ * manually.
  */
 export function useAutoSyncResults() {
   const { isAdmin } = useAuth();
@@ -50,14 +52,15 @@ export function useAutoSyncResults() {
 
     syncFixtureFromApi().catch(() => {});
 
-    const interval = setInterval(() => {
-      checkResults();
+    const resultsInterval = setInterval(checkResults, RESULTS_INTERVAL_MS);
+    const fixturesInterval = setInterval(() => {
       syncFixtureFromApi().catch(() => {});
-    }, SYNC_INTERVAL_MS);
+    }, FIXTURES_INTERVAL_MS);
 
     return () => {
       unsubscribe();
-      clearInterval(interval);
+      clearInterval(resultsInterval);
+      clearInterval(fixturesInterval);
     };
   }, [isAdmin]);
 }
