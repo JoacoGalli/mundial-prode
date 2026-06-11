@@ -5,7 +5,6 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Matches from './pages/Matches';
 import MyPredictions from './pages/MyPredictions';
-import Prizes from './pages/Prizes';
 import Admin from './pages/Admin';
 import HowItWorks from './pages/HowItWorks';
 import Groups from './pages/Groups';
@@ -42,14 +41,6 @@ function App() {
           element={
             <RequireAuth>
               <MyPredictions />
-            </RequireAuth>
-          }
-        />
-        <Route
-          path="/prizes"
-          element={
-            <RequireAuth>
-              <Prizes />
             </RequireAuth>
           }
         />
