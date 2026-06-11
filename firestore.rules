@@ -120,18 +120,18 @@ service cloud.firestore {
           hasValidInviteCode();
       }
 
-      allow create: if isSignedIn() && (isSelfJoinWithCode() || isGroupAdmin(path[1]));
+      allow create: if isSignedIn() && (isSelfJoinWithCode() || isGroupAdmin(path[1]) || isAdmin());
 
-      allow update: if isSignedIn() && (isSelfJoinWithCode() || isGroupAdmin(path[1]));
+      allow update: if isSignedIn() && (isSelfJoinWithCode() || isGroupAdmin(path[1]) || isAdmin());
 
-      allow delete: if isSignedIn() && (request.auth.uid == uid || isGroupAdmin(path[1]));
+      allow delete: if isSignedIn() && (request.auth.uid == uid || isGroupAdmin(path[1]) || isAdmin());
     }
 
     // ---- /groups/{groupId} ----
     // Any signed-in user can read groups (needed to resolve invite links)
-    // and create a new group, becoming its sole owner/admin. Only the
-    // group's admins can edit it (name, prize pool, distribution, bonus,
-    // invite code, adminUIDs).
+    // and create a new group, becoming its sole owner/admin. The group's own
+    // admins can edit/delete it, and so can the app's global admins
+    // (config/settings.adminUIDs), who can manage any group.
     match /groups/{groupId} {
       allow read: if isSignedIn();
 
@@ -139,8 +139,8 @@ service cloud.firestore {
         request.resource.data.ownerUid == request.auth.uid &&
         request.resource.data.adminUIDs == [request.auth.uid];
 
-      allow update: if isGroupAdmin(groupId);
-      allow delete: if false;
+      allow update: if isGroupAdmin(groupId) || isAdmin();
+      allow delete: if isGroupAdmin(groupId) || isAdmin();
     }
   }
 }

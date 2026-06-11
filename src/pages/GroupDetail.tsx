@@ -14,7 +14,7 @@ const MEDALS = ['🥇', '🥈', '🥉'];
 
 export default function GroupDetail() {
   const { groupId } = useParams<{ groupId: string }>();
-  const { user, settings } = useAuth();
+  const { user, settings, isAdmin: isGlobalAdmin } = useAuth();
   const [group, setGroup] = useState<Group | null | undefined>(undefined);
   const [members, setMembers] = useState<GroupMember[]>([]);
   const [users, setUsers] = useState<UserProfile[]>([]);
@@ -60,7 +60,8 @@ export default function GroupDetail() {
   const entries = buildLeaderboardEntries(groupUsers, picksByUid, settings.champion, group.championBonus);
   const ranked = calculateWinners(entries, group);
   const hasPrizePool = group.prizePool > 0;
-  const isAdmin = !!user && group.adminUIDs.includes(user.uid);
+  const isMember = !!user && members.some((m) => m.uid === user.uid && m.status === 'approved');
+  const canManage = (!!user && group.adminUIDs.includes(user.uid)) || isGlobalAdmin;
   const isOwner = !!user && group.ownerUid === user.uid;
 
   const handleLeave = async () => {
@@ -79,12 +80,12 @@ export default function GroupDetail() {
       <div className="flex-between" style={{ flexWrap: 'wrap', gap: '0.5rem', marginBottom: '1rem' }}>
         <h1 className="page-title" style={{ marginBottom: 0 }}>{group.name}</h1>
         <div className="flex gap-sm">
-          {isAdmin && (
+          {canManage && (
             <Link className="btn btn-secondary" to={`/groups/${group.id}/admin`}>
               <Settings size={16} /> Administrar
             </Link>
           )}
-          {!isOwner && (
+          {!isOwner && isMember && (
             <button className="btn btn-secondary" onClick={handleLeave} disabled={leaving}>
               {leaving ? <Loader2 size={16} className="spin" /> : <LogOut size={16} />}
               Salir

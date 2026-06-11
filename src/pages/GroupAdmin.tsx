@@ -1,23 +1,28 @@
 import { useEffect, useState } from 'react';
-import { Link, Navigate, useParams } from 'react-router-dom';
-import { Check, Copy, Loader2, RefreshCw, Trash2 } from 'lucide-react';
+import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
+import { Check, Copy, Loader2, Plus, RefreshCw, Trash2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import {
+  addMemberToGroup,
+  deleteGroup,
   regenerateInviteCode,
   removeMember,
   subscribeToGroup,
   subscribeToGroupMembers,
   updateGroupSettings,
 } from '../services/groups';
+import { subscribeToLeaderboard } from '../services/users';
 import PrizeSettings from '../components/admin/PrizeSettings';
 import LoadingSpinner from '../components/LoadingSpinner';
-import type { Group, GroupMember } from '../types';
+import type { Group, GroupMember, UserProfile } from '../types';
 
 export default function GroupAdmin() {
   const { groupId } = useParams<{ groupId: string }>();
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
+  const navigate = useNavigate();
   const [group, setGroup] = useState<Group | null | undefined>(undefined);
   const [members, setMembers] = useState<GroupMember[]>([]);
+  const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
   const [name, setName] = useState('');
   const [savingName, setSavingName] = useState(false);
   const [bonus, setBonus] = useState(0);
@@ -25,6 +30,9 @@ export default function GroupAdmin() {
   const [copiedLink, setCopiedLink] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
+  const [addUid, setAddUid] = useState('');
+  const [adding, setAdding] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (!groupId) return;
@@ -44,11 +52,18 @@ export default function GroupAdmin() {
     return () => unsubscribe();
   }, [groupId]);
 
+  useEffect(() => {
+    const unsubscribe = subscribeToLeaderboard(setAllUsers);
+    return () => unsubscribe();
+  }, []);
+
   if (group === undefined) return <LoadingSpinner />;
   if (!group || !groupId) return <Navigate to="/groups" replace />;
-  if (!user || !group.adminUIDs.includes(user.uid)) return <Navigate to={`/groups/${groupId}`} replace />;
+  if (!user || (!group.adminUIDs.includes(user.uid) && !isAdmin)) return <Navigate to={`/groups/${groupId}`} replace />;
 
   const approved = members.filter((m) => m.status === 'approved');
+  const memberUids = new Set(approved.map((m) => m.uid));
+  const nonMembers = allUsers.filter((u) => !memberUids.has(u.uid));
   const inviteLink = `${window.location.origin}${import.meta.env.BASE_URL}#/join/${group.inviteCode}`;
 
   const handleSaveName = async () => {
@@ -89,6 +104,29 @@ export default function GroupAdmin() {
       await regenerateInviteCode(group.id);
     } finally {
       setRegenerating(false);
+    }
+  };
+
+  const handleAddMember = async () => {
+    const profile = allUsers.find((u) => u.uid === addUid);
+    if (!profile) return;
+    setAdding(true);
+    try {
+      await addMemberToGroup(group.id, profile);
+      setAddUid('');
+    } finally {
+      setAdding(false);
+    }
+  };
+
+  const handleDeleteGroup = async () => {
+    if (!confirm(`¿Eliminar el grupo "${group.name}" para siempre? Esta acción no se puede deshacer.`)) return;
+    setDeleting(true);
+    try {
+      await deleteGroup(group.id);
+      navigate('/groups');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -189,7 +227,44 @@ export default function GroupAdmin() {
             )}
           </div>
         ))}
+
+        {isAdmin && (
+          <div className="flex gap-sm" style={{ flexWrap: 'wrap', marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px dashed rgba(255, 255, 255, 0.12)' }}>
+            <select
+              className="input"
+              value={addUid}
+              onChange={(e) => setAddUid(e.target.value)}
+              style={{ flex: '1 1 200px' }}
+            >
+              <option value="">Agregar usuario...</option>
+              {nonMembers.map((u) => (
+                <option key={u.uid} value={u.uid}>{u.name}</option>
+              ))}
+            </select>
+            <button className="btn btn-secondary" onClick={handleAddMember} disabled={!addUid || adding}>
+              {adding ? <Loader2 size={16} className="spin" /> : <Plus size={16} />}
+              Agregar
+            </button>
+          </div>
+        )}
       </div>
+
+      {isAdmin && (
+        <div className="card section">
+          <div className="flex-between" style={{ flexWrap: 'wrap', gap: '0.75rem' }}>
+            <div>
+              <h3 className="muted">Eliminar grupo</h3>
+              <p className="muted" style={{ fontSize: '0.85rem', margin: 0 }}>
+                Borra el grupo y todos sus miembros para siempre. No se puede deshacer.
+              </p>
+            </div>
+            <button className="btn btn-danger" onClick={handleDeleteGroup} disabled={deleting}>
+              {deleting ? <Loader2 size={16} className="spin" /> : <Trash2 size={16} />}
+              Eliminar grupo
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

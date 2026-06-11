@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Loader2, Plus, Users } from 'lucide-react';
+import { Loader2, Plus, Settings, Trash2, Users } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import {
   createGroup,
+  deleteGroup,
   findGroupByInviteCode,
   joinGroupWithCode,
+  subscribeToAllGroups,
   subscribeToGroup,
   subscribeToMyMemberships,
 } from '../services/groups';
@@ -15,21 +17,29 @@ import type { Group, GroupMember } from '../types';
 type Membership = { groupId: string; status: GroupMember['status'] };
 
 export default function Groups() {
-  const { user, profile } = useAuth();
+  const { user, profile, isAdmin } = useAuth();
   const navigate = useNavigate();
   const [memberships, setMemberships] = useState<Membership[] | null>(null);
   const [groupsById, setGroupsById] = useState<Record<string, Group>>({});
+  const [allGroups, setAllGroups] = useState<Group[]>([]);
   const [name, setName] = useState('');
   const [creating, setCreating] = useState(false);
   const [code, setCode] = useState('');
   const [joining, setJoining] = useState(false);
   const [joinMessage, setJoinMessage] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) return;
     const unsubscribe = subscribeToMyMemberships(user.uid, setMemberships);
     return () => unsubscribe();
   }, [user]);
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    const unsubscribe = subscribeToAllGroups(setAllGroups);
+    return () => unsubscribe();
+  }, [isAdmin]);
 
   useEffect(() => {
     if (!memberships) return;
@@ -97,6 +107,16 @@ export default function Groups() {
     }
   };
 
+  const handleDeleteGroup = async (group: Group) => {
+    if (!confirm(`¿Eliminar el grupo "${group.name}" para siempre? Esta acción no se puede deshacer.`)) return;
+    setDeletingId(group.id);
+    try {
+      await deleteGroup(group.id);
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
   return (
     <div className="page">
       <h1 className="page-title">Grupos</h1>
@@ -116,6 +136,31 @@ export default function Groups() {
           </Link>
         ))}
       </div>
+
+      {isAdmin && (
+        <div className="card section">
+          <h3 className="muted" style={{ marginBottom: '0.75rem' }}>Todos los grupos (admin)</h3>
+          {allGroups.length === 0 && <p className="muted">Todavía no hay grupos creados.</p>}
+          {allGroups.map((g) => (
+            <div key={g.id} className="flex-between" style={{ marginBottom: '0.5rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+              <span>{g.name}</span>
+              <div className="flex gap-sm">
+                <Link className="btn btn-secondary" to={`/groups/${g.id}/admin`}>
+                  <Settings size={16} /> Administrar
+                </Link>
+                <button
+                  className="btn btn-danger"
+                  onClick={() => handleDeleteGroup(g)}
+                  disabled={deletingId === g.id}
+                  title="Eliminar grupo"
+                >
+                  {deletingId === g.id ? <Loader2 size={16} className="spin" /> : <Trash2 size={16} />}
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       <div className="card section">
         <h3 className="muted" style={{ marginBottom: '0.75rem' }}>Crear un grupo nuevo</h3>

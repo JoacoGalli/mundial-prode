@@ -11,6 +11,7 @@ import {
   setDoc,
   updateDoc,
   where,
+  writeBatch,
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import type { Group, GroupMember, UserProfile } from '../types';
@@ -56,6 +57,20 @@ export async function createGroup(
     joinedAt: serverTimestamp(),
   });
   return groupRef.id;
+}
+
+/** Every group that exists, e.g. for the global admin's "all groups" view. */
+export function subscribeToAllGroups(callback: (groups: Group[]) => void) {
+  return onSnapshot(
+    groupsCol,
+    (snap) => {
+      callback(snap.docs.map(toGroup));
+    },
+    (error) => {
+      console.error('subscribeToAllGroups error:', error);
+      callback([]);
+    }
+  );
 }
 
 export function subscribeToGroup(groupId: string, callback: (group: Group | null) => void) {
@@ -141,8 +156,35 @@ export async function joinGroupWithCode(
   );
 }
 
+/** Admin-only: adds any user as an approved member of a group, no invite code needed. */
+export async function addMemberToGroup(
+  groupId: string,
+  profile: Pick<UserProfile, 'uid' | 'name' | 'photoURL'>
+) {
+  await setDoc(doc(db, 'groups', groupId, 'members', profile.uid), {
+    uid: profile.uid,
+    name: profile.name,
+    photoURL: profile.photoURL,
+    status: 'approved',
+    joinedAt: serverTimestamp(),
+  });
+}
+
 export async function removeMember(groupId: string, uid: string) {
   await deleteDoc(doc(db, 'groups', groupId, 'members', uid));
+}
+
+/** Admin-only: permanently deletes a group and all of its membership docs. */
+export async function deleteGroup(groupId: string) {
+  const membersSnap = await getDocs(collection(db, 'groups', groupId, 'members'));
+
+  for (let i = 0; i < membersSnap.docs.length; i += 500) {
+    const batch = writeBatch(db);
+    membersSnap.docs.slice(i, i + 500).forEach((d) => batch.delete(d.ref));
+    await batch.commit();
+  }
+
+  await deleteDoc(doc(db, 'groups', groupId));
 }
 
 export async function leaveGroup(groupId: string, uid: string) {
