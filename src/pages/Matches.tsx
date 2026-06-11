@@ -3,12 +3,15 @@ import { Check, Loader2 } from 'lucide-react';
 import { subscribeToMatches } from '../services/matches';
 import { subscribeToUserPredictions, savePredictions } from '../services/predictions';
 import { subscribeToLeaderboard } from '../services/users';
+import { subscribeToAllGroups, subscribeToGroupMembers, subscribeToMyMemberships } from '../services/groups';
 import { useAuth } from '../contexts/AuthContext';
 import MatchCard from '../components/MatchCard';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { isMatchLocked } from '../utils/format';
 import { ROUNDS, getDefaultRound } from '../utils/rounds';
-import type { Match, Prediction, Round, UserProfile } from '../types';
+import type { Group, GroupMember, Match, Prediction, Round, UserProfile } from '../types';
+
+const GENERAL = 'general';
 
 export default function Matches() {
   const { user } = useAuth();
@@ -19,6 +22,11 @@ export default function Matches() {
   const [drafts, setDrafts] = useState<Record<string, { home: number; away: number }>>({});
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [allGroups, setAllGroups] = useState<Group[]>([]);
+  const [myGroupIds, setMyGroupIds] = useState<string[]>([]);
+  const [groupMembers, setGroupMembers] = useState<GroupMember[]>([]);
+  const [selectedGroupId, setSelectedGroupId] = useState<string>(GENERAL);
+  const [hasDefaulted, setHasDefaulted] = useState(false);
 
   useEffect(() => {
     const unsubscribe = subscribeToMatches(setMatches);
@@ -36,10 +44,47 @@ export default function Matches() {
     return () => unsubscribe();
   }, []);
 
+  useEffect(() => {
+    const unsubscribe = subscribeToAllGroups(setAllGroups);
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    if (!user) return;
+    const unsubscribe = subscribeToMyMemberships(user.uid, (rows) => {
+      setMyGroupIds(rows.filter((r) => r.status === 'approved').map((r) => r.groupId));
+    });
+    return () => unsubscribe();
+  }, [user]);
+
+  const myGroups = allGroups.filter((g) => myGroupIds.includes(g.id));
+
+  // Default to the user's first group as soon as it's known, but only once,
+  // so it doesn't override a selection the user already made.
+  useEffect(() => {
+    if (!hasDefaulted && myGroups.length > 0) {
+      setSelectedGroupId(myGroups[0].id);
+      setHasDefaulted(true);
+    }
+  }, [myGroups, hasDefaulted]);
+
+  useEffect(() => {
+    if (selectedGroupId === GENERAL) {
+      setGroupMembers([]);
+      return;
+    }
+    const unsubscribe = subscribeToGroupMembers(selectedGroupId, setGroupMembers);
+    return () => unsubscribe();
+  }, [selectedGroupId]);
+
   if (!matches) return <LoadingSpinner />;
 
+  const selectedGroup = myGroups.find((g) => g.id === selectedGroupId) ?? null;
   const predictionByMatch = new Map(predictions.map((p) => [p.matchId, p]));
-  const usersById = Object.fromEntries(users.map((u) => [u.uid, u]));
+  const scopedUsers = selectedGroup
+    ? users.filter((u) => groupMembers.some((m) => m.uid === u.uid && m.status === 'approved'))
+    : users;
+  const usersById = Object.fromEntries(scopedUsers.map((u) => [u.uid, u]));
   const round = selectedRound ?? getDefaultRound(matches);
   const matchesInRound = matches.filter((m) => m.round === round);
   const openMatches = matchesInRound.filter((m) => !isMatchLocked(m));
@@ -75,7 +120,7 @@ export default function Matches() {
         className="input"
         value={round}
         onChange={(e) => setSelectedRound(e.target.value as Round)}
-        style={{ marginBottom: '1rem', width: '100%' }}
+        style={{ marginBottom: myGroups.length > 0 ? '0.75rem' : '1rem', width: '100%' }}
       >
         {ROUNDS.map((r) => (
           <option key={r} value={r}>
@@ -83,6 +128,22 @@ export default function Matches() {
           </option>
         ))}
       </select>
+
+      {myGroups.length > 0 && (
+        <select
+          className="input"
+          value={selectedGroupId}
+          onChange={(e) => setSelectedGroupId(e.target.value)}
+          style={{ marginBottom: '1rem', width: '100%' }}
+        >
+          <option value={GENERAL}>Pronósticos: General</option>
+          {myGroups.map((g) => (
+            <option key={g.id} value={g.id}>
+              Pronósticos: {g.name}
+            </option>
+          ))}
+        </select>
+      )}
 
       {matches.length === 0 && (
         <p className="muted">Todavía no hay partidos cargados. Pedile al admin que cargue el fixture.</p>

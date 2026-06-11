@@ -92,29 +92,32 @@ export default function MatchCard({ match, prediction, onChange, usersById }: Ma
 
             {showPredictions && (
               <div style={{ marginTop: '0.75rem' }}>
-                {allPredictions.length === 0 && (
-                  <p className="muted" style={{ margin: 0 }}>Todavía nadie cargó un pronóstico para este partido.</p>
-                )}
-                {allPredictions
-                  .slice()
-                  .sort((a, b) => (usersById?.[a.uid]?.name ?? a.uid).localeCompare(usersById?.[b.uid]?.name ?? b.uid))
-                  .map((p) => {
-                    const u = usersById?.[p.uid];
-                    return (
-                      <div key={p.uid} className="flex-between" style={{ padding: '0.25rem 0' }}>
-                        <div className="flex gap-sm" style={{ alignItems: 'center' }}>
-                          {u?.photoURL && (
-                            <img src={u.photoURL} alt={u.name} style={{ width: 24, height: 24, borderRadius: '50%' }} />
-                          )}
-                          <span>{u?.name ?? 'Jugador'}</span>
+                {(() => {
+                  const visiblePredictions = allPredictions.filter((p) => !usersById || p.uid in usersById);
+                  if (visiblePredictions.length === 0) {
+                    return <p className="muted" style={{ margin: 0 }}>Todavía nadie cargó un pronóstico para este partido.</p>;
+                  }
+                  return visiblePredictions
+                    .slice()
+                    .sort((a, b) => (usersById?.[a.uid]?.name ?? a.uid).localeCompare(usersById?.[b.uid]?.name ?? b.uid))
+                    .map((p) => {
+                      const u = usersById?.[p.uid];
+                      return (
+                        <div key={p.uid} className="flex-between" style={{ padding: '0.25rem 0' }}>
+                          <div className="flex gap-sm" style={{ alignItems: 'center' }}>
+                            {u?.photoURL && (
+                              <img src={u.photoURL} alt={u.name} style={{ width: 24, height: 24, borderRadius: '50%' }} />
+                            )}
+                            <span>{u?.name ?? 'Jugador'}</span>
+                          </div>
+                          <div className="flex gap-sm" style={{ alignItems: 'center' }}>
+                            <span>{p.home} - {p.away}</span>
+                            {p.points != null && <span className="badge badge-points">+{p.points} pts</span>}
+                          </div>
                         </div>
-                        <div className="flex gap-sm" style={{ alignItems: 'center' }}>
-                          <span>{p.home} - {p.away}</span>
-                          {p.points != null && <span className="badge badge-points">+{p.points} pts</span>}
-                        </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    });
+                })()}
               </div>
             )}
           </>

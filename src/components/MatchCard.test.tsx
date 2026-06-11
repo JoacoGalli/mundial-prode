@@ -111,4 +111,25 @@ describe('MatchCard', () => {
     expect(screen.getByText('2 - 0')).toBeInTheDocument();
     expect(screen.getByText('+7 pts')).toBeInTheDocument();
   });
+
+  it('hides predictions from users outside the given usersById scope (e.g. another group)', async () => {
+    const usersById: Record<string, UserProfile> = {
+      'user-1': { uid: 'user-1', name: 'Beto', email: '', photoURL: '', predictionPoints: 0, joinedAt: Timestamp.now() },
+    };
+    subscribeToMatchPredictions.mockImplementation((_matchId: string, cb: (preds: Prediction[]) => void) => {
+      cb([
+        makePrediction({ uid: 'user-1', home: 2, away: 0, points: 7 }),
+        makePrediction({ id: 'pred-2', uid: 'user-2', home: 1, away: 1, points: null }),
+      ]);
+      return () => {};
+    });
+
+    render(<MatchCard match={makeMatch({ locked: true })} usersById={usersById} />);
+
+    await userEvent.click(screen.getByRole('button', { name: /ver pronósticos/i }));
+
+    expect(screen.getByText('Beto')).toBeInTheDocument();
+    expect(screen.getByText('2 - 0')).toBeInTheDocument();
+    expect(screen.queryByText('1 - 1')).not.toBeInTheDocument();
+  });
 });
