@@ -3,8 +3,8 @@ import {
   doc,
   onSnapshot,
   query,
-  setDoc,
   where,
+  writeBatch,
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import type { Prediction } from '../types';
@@ -38,23 +38,15 @@ export function subscribeToMatchPredictions(
   });
 }
 
-export async function savePrediction(
+/** Saves several predictions for `uid` in a single batch, e.g. "save all" for a round. */
+export async function savePredictions(
   uid: string,
-  matchId: string,
-  home: number,
-  away: number
+  items: { matchId: string; home: number; away: number }[]
 ) {
-  const ref = doc(db, 'predictions', `${uid}_${matchId}`);
-  await setDoc(
-    ref,
-    {
-      uid,
-      matchId,
-      home,
-      away,
-      points: null,
-      scoredAt: null,
-    },
-    { merge: true }
-  );
+  const batch = writeBatch(db);
+  for (const { matchId, home, away } of items) {
+    const ref = doc(db, 'predictions', `${uid}_${matchId}`);
+    batch.set(ref, { uid, matchId, home, away, points: null, scoredAt: null }, { merge: true });
+  }
+  await batch.commit();
 }

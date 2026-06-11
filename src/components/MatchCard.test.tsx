@@ -56,19 +56,18 @@ describe('MatchCard', () => {
     expect(screen.getByText('2 - 1')).toBeInTheDocument();
   });
 
-  it('shows "Abierto" and a save button for an open match with onSave', async () => {
-    const onSave = vi.fn().mockResolvedValue(undefined);
-    render(<MatchCard match={makeMatch()} onSave={onSave} />);
+  it('shows "Abierto" for an open match and reports score changes via onChange', async () => {
+    const onChange = vi.fn();
+    render(<MatchCard match={makeMatch()} onChange={onChange} />);
 
     expect(screen.getByText('Abierto')).toBeInTheDocument();
-    await userEvent.click(screen.getByRole('button', { name: 'Guardar' }));
-    expect(onSave).toHaveBeenCalledWith(0, 0);
+    await userEvent.click(screen.getAllByRole('button', { name: 'Sumar gol' })[0]);
+    expect(onChange).toHaveBeenCalledWith(1, 0);
   });
 
-  it('shows "Cerrado" and hides the save button for a locked match', () => {
-    render(<MatchCard match={makeMatch({ locked: true })} onSave={vi.fn()} />);
+  it('shows "Cerrado" for a locked match', () => {
+    render(<MatchCard match={makeMatch({ locked: true })} />);
     expect(screen.getByText('Cerrado')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Guardar' })).not.toBeInTheDocument();
   });
 
   it('shows the points earned for a scored prediction', () => {

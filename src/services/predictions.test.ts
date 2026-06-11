@@ -1,9 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const mockSetDoc = vi.fn();
 const mockOnSnapshot = vi.fn();
 const mockWhere = vi.fn((...args: unknown[]) => ({ type: 'where', args }));
 const mockDoc = vi.fn((...args: unknown[]) => ({ type: 'doc', args }));
+const mockBatchSet = vi.fn();
+const mockBatchCommit = vi.fn().mockResolvedValue(undefined);
+const mockWriteBatch = vi.fn(() => ({ set: mockBatchSet, commit: mockBatchCommit }));
 
 vi.mock('../lib/firebase', () => ({ db: {} }));
 
@@ -16,25 +18,30 @@ vi.mock('firebase/firestore', async (importOriginal) => {
     query: vi.fn((...args: unknown[]) => ({ type: 'query', args })),
     where: mockWhere,
     onSnapshot: mockOnSnapshot,
-    setDoc: mockSetDoc,
+    writeBatch: mockWriteBatch,
   };
 });
 
-const { savePrediction, subscribeToUserPredictions, subscribeToMatchPredictions } = await import(
+const { savePredictions, subscribeToUserPredictions, subscribeToMatchPredictions } = await import(
   './predictions'
 );
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mockBatchCommit.mockResolvedValue(undefined);
 });
 
-describe('savePrediction', () => {
-  it('writes the prediction with null points/scoredAt to be filled in once the match ends', async () => {
-    await savePrediction('user-1', 'match-1', 2, 1);
+describe('savePredictions', () => {
+  it('batches a set per prediction with null points/scoredAt to be filled in once the match ends', async () => {
+    await savePredictions('user-1', [
+      { matchId: 'match-1', home: 2, away: 1 },
+      { matchId: 'match-2', home: 0, away: 0 },
+    ]);
 
     expect(mockDoc).toHaveBeenCalledWith({}, 'predictions', 'user-1_match-1');
-    expect(mockSetDoc).toHaveBeenCalledTimes(1);
-    const [, data, options] = mockSetDoc.mock.calls[0];
+    expect(mockDoc).toHaveBeenCalledWith({}, 'predictions', 'user-1_match-2');
+    expect(mockBatchSet).toHaveBeenCalledTimes(2);
+    const [, data, options] = mockBatchSet.mock.calls[0];
     expect(data).toEqual({
       uid: 'user-1',
       matchId: 'match-1',
@@ -44,6 +51,7 @@ describe('savePrediction', () => {
       scoredAt: null,
     });
     expect(options).toEqual({ merge: true });
+    expect(mockBatchCommit).toHaveBeenCalledTimes(1);
   });
 });
 

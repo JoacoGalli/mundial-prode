@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ChevronDown, ChevronUp, Lock, Unlock, Check, Users } from 'lucide-react';
+import { ChevronDown, ChevronUp, Lock, Unlock, Users } from 'lucide-react';
 import type { Match, Prediction, UserProfile } from '../types';
 import ScoreSpinner from './ScoreSpinner';
 import { formatDateTime, isMatchLocked } from '../utils/format';
@@ -8,15 +8,13 @@ import { subscribeToMatchPredictions } from '../services/predictions';
 interface MatchCardProps {
   match: Match;
   prediction?: Prediction;
-  onSave?: (home: number, away: number) => Promise<void>;
+  onChange?: (home: number, away: number) => void;
   usersById?: Record<string, UserProfile>;
 }
 
-export default function MatchCard({ match, prediction, onSave, usersById }: MatchCardProps) {
+export default function MatchCard({ match, prediction, onChange, usersById }: MatchCardProps) {
   const [home, setHome] = useState(prediction?.home ?? 0);
   const [away, setAway] = useState(prediction?.away ?? 0);
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
   const [showPredictions, setShowPredictions] = useState(false);
   const [allPredictions, setAllPredictions] = useState<Prediction[]>([]);
 
@@ -29,16 +27,14 @@ export default function MatchCard({ match, prediction, onSave, usersById }: Matc
     return () => unsubscribe();
   }, [showPredictions, match.id]);
 
-  const handleSave = async () => {
-    if (!onSave) return;
-    setSaving(true);
-    try {
-      await onSave(home, away);
-      setSaved(true);
-      setTimeout(() => setSaved(false), 1500);
-    } finally {
-      setSaving(false);
-    }
+  const handleHomeChange = (value: number) => {
+    setHome(value);
+    onChange?.(value, away);
+  };
+
+  const handleAwayChange = (value: number) => {
+    setAway(value);
+    onChange?.(home, value);
   };
 
   return (
@@ -61,9 +57,9 @@ export default function MatchCard({ match, prediction, onSave, usersById }: Matc
 
         <div className="ticket-footer">
           <div className="flex gap-sm" style={{ alignItems: 'center' }}>
-            <ScoreSpinner value={home} onChange={setHome} disabled={locked} label={`Goles ${match.teamA}`} />
+            <ScoreSpinner value={home} onChange={handleHomeChange} disabled={locked} label={`Goles ${match.teamA}`} />
             <span className="muted">-</span>
-            <ScoreSpinner value={away} onChange={setAway} disabled={locked} label={`Goles ${match.teamB}`} />
+            <ScoreSpinner value={away} onChange={handleAwayChange} disabled={locked} label={`Goles ${match.teamB}`} />
           </div>
 
           <div className="ticket-footer-meta">
@@ -78,11 +74,6 @@ export default function MatchCard({ match, prediction, onSave, usersById }: Matc
               <span className="badge badge-open">
                 <Unlock size={12} /> Abierto
               </span>
-            )}
-            {!locked && onSave && (
-              <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
-                {saved ? <Check size={16} /> : 'Guardar'}
-              </button>
             )}
           </div>
         </div>

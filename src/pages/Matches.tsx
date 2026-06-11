@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
+import { Check, Loader2 } from 'lucide-react';
 import { subscribeToMatches } from '../services/matches';
-import { subscribeToUserPredictions, savePrediction } from '../services/predictions';
+import { subscribeToUserPredictions, savePredictions } from '../services/predictions';
 import { subscribeToLeaderboard } from '../services/users';
 import { useAuth } from '../contexts/AuthContext';
 import MatchCard from '../components/MatchCard';
 import LoadingSpinner from '../components/LoadingSpinner';
+import { isMatchLocked } from '../utils/format';
 import { ROUNDS, getDefaultRound } from '../utils/rounds';
 import type { Match, Prediction, Round, UserProfile } from '../types';
 
@@ -14,6 +16,9 @@ export default function Matches() {
   const [predictions, setPredictions] = useState<Prediction[]>([]);
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [selectedRound, setSelectedRound] = useState<Round | null>(null);
+  const [drafts, setDrafts] = useState<Record<string, { home: number; away: number }>>({});
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
 
   useEffect(() => {
     const unsubscribe = subscribeToMatches(setMatches);
@@ -37,6 +42,30 @@ export default function Matches() {
   const usersById = Object.fromEntries(users.map((u) => [u.uid, u]));
   const round = selectedRound ?? getDefaultRound(matches);
   const matchesInRound = matches.filter((m) => m.round === round);
+  const openMatches = matchesInRound.filter((m) => !isMatchLocked(m));
+
+  const handleSaveAll = async () => {
+    if (!user) return;
+    setSaving(true);
+    try {
+      await savePredictions(
+        user.uid,
+        openMatches.map((m) => {
+          const draft = drafts[m.id];
+          const prediction = predictionByMatch.get(m.id);
+          return {
+            matchId: m.id,
+            home: draft?.home ?? prediction?.home ?? 0,
+            away: draft?.away ?? prediction?.away ?? 0,
+          };
+        })
+      );
+      setSaved(true);
+      setTimeout(() => setSaved(false), 1500);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <div className="page">
@@ -69,13 +98,25 @@ export default function Matches() {
           match={match}
           prediction={predictionByMatch.get(match.id)}
           usersById={usersById}
-          onSave={
-            user
-              ? (home, away) => savePrediction(user.uid, match.id, home, away)
+          onChange={
+            user && !isMatchLocked(match)
+              ? (home, away) => setDrafts((d) => ({ ...d, [match.id]: { home, away } }))
               : undefined
           }
         />
       ))}
+
+      {user && openMatches.length > 0 && (
+        <button
+          className="btn btn-primary"
+          style={{ width: '100%', marginTop: '1rem' }}
+          onClick={handleSaveAll}
+          disabled={saving}
+        >
+          {saving ? <Loader2 size={16} className="spin" /> : saved ? <Check size={16} /> : null}
+          {saved ? 'Pronósticos guardados' : 'Guardar pronósticos'}
+        </button>
+      )}
     </div>
   );
 }
