@@ -1,27 +1,22 @@
 import { useEffect, useState } from 'react';
-import { subscribeToMatches } from '../services/matches';
 import { subscribeToUserPredictions } from '../services/predictions';
 import { subscribeToChampionPick, saveChampionPick } from '../services/championPicks';
 import { useAuth } from '../contexts/AuthContext';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ChampionPickCard from '../components/ChampionPickCard';
 import { useLivePoints } from '../hooks/useLivePoints';
+import { useMatchesWithLiveScores } from '../hooks/useMatchesWithLiveScores';
 import { formatDateTime, formatLiveStatus } from '../utils/format';
 import { calculatePoints } from '../utils/scoring';
 import { getAllTeams } from '../utils/teams';
-import type { ChampionPick, Match, Prediction } from '../types';
+import type { ChampionPick, Prediction } from '../types';
 
 export default function MyPredictions() {
   const { user, profile, settings } = useAuth();
   const { livePointsByUid } = useLivePoints();
-  const [matches, setMatches] = useState<Match[] | null>(null);
+  const { matches, loading } = useMatchesWithLiveScores();
   const [predictions, setPredictions] = useState<Prediction[]>([]);
   const [championPick, setChampionPick] = useState<ChampionPick | null>(null);
-
-  useEffect(() => {
-    const unsubscribe = subscribeToMatches(setMatches);
-    return () => unsubscribe();
-  }, []);
 
   useEffect(() => {
     if (!user) return;
@@ -35,7 +30,7 @@ export default function MyPredictions() {
     return () => unsubscribe();
   }, [user]);
 
-  if (!matches) return <LoadingSpinner />;
+  if (loading) return <LoadingSpinner />;
 
   const predictionByMatch = new Map(predictions.map((p) => [p.matchId, p]));
   const matchesWithPredictions = matches.filter((m) => predictionByMatch.has(m.id));

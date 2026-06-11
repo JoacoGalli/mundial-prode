@@ -1,21 +1,21 @@
 import { useEffect, useState } from 'react';
 import { Check, Loader2 } from 'lucide-react';
-import { subscribeToMatches } from '../services/matches';
 import { subscribeToUserPredictions, savePredictions } from '../services/predictions';
 import { subscribeToLeaderboard } from '../services/users';
 import { subscribeToAllGroups, subscribeToGroupMembers, subscribeToMyMemberships } from '../services/groups';
 import { useAuth } from '../contexts/AuthContext';
 import MatchCard from '../components/MatchCard';
 import LoadingSpinner from '../components/LoadingSpinner';
+import { useMatchesWithLiveScores } from '../hooks/useMatchesWithLiveScores';
 import { isMatchLocked } from '../utils/format';
 import { ROUNDS, getDefaultRound } from '../utils/rounds';
-import type { Group, GroupMember, Match, Prediction, Round, UserProfile } from '../types';
+import type { Group, GroupMember, Prediction, Round, UserProfile } from '../types';
 
 const GENERAL = 'general';
 
 export default function Matches() {
   const { user } = useAuth();
-  const [matches, setMatches] = useState<Match[] | null>(null);
+  const { matches, loading } = useMatchesWithLiveScores();
   const [predictions, setPredictions] = useState<Prediction[]>([]);
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [selectedRound, setSelectedRound] = useState<Round | null>(null);
@@ -27,11 +27,6 @@ export default function Matches() {
   const [groupMembers, setGroupMembers] = useState<GroupMember[]>([]);
   const [selectedGroupId, setSelectedGroupId] = useState<string>(GENERAL);
   const [hasDefaulted, setHasDefaulted] = useState(false);
-
-  useEffect(() => {
-    const unsubscribe = subscribeToMatches(setMatches);
-    return () => unsubscribe();
-  }, []);
 
   useEffect(() => {
     if (!user) return;
@@ -77,7 +72,7 @@ export default function Matches() {
     return () => unsubscribe();
   }, [selectedGroupId]);
 
-  if (!matches) return <LoadingSpinner />;
+  if (loading) return <LoadingSpinner />;
 
   const selectedGroup = myGroups.find((g) => g.id === selectedGroupId) ?? null;
   const predictionByMatch = new Map(predictions.map((p) => [p.matchId, p]));

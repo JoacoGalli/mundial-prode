@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
-import { subscribeToMatches } from '../services/matches';
+import { useMatchesWithLiveScores } from './useMatchesWithLiveScores';
 import { subscribeToPredictionsForMatches } from '../services/predictions';
 import { getLivePointsByUid } from '../utils/prizes';
-import type { Match, Prediction } from '../types';
+import type { Prediction } from '../types';
 
 /**
  * Tracks matches currently in progress (have a live score but no official
@@ -11,13 +11,8 @@ import type { Match, Prediction } from '../types';
  * recalculating total.
  */
 export function useLivePoints() {
-  const [matches, setMatches] = useState<Match[]>([]);
+  const { matches } = useMatchesWithLiveScores();
   const [livePredictions, setLivePredictions] = useState<Prediction[]>([]);
-
-  useEffect(() => {
-    const unsubscribe = subscribeToMatches(setMatches);
-    return () => unsubscribe();
-  }, []);
 
   const liveMatches = useMemo(
     () => matches.filter((m) => m.result == null && m.liveScore != null),
