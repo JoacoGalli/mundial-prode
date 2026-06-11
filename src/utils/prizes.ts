@@ -12,27 +12,29 @@ export interface RankedUser extends LeaderboardEntry {
   prize: number;
 }
 
-/** Bonus points a champion pick is worth, or 0 if it doesn't match the official champion. */
+/** Bonus points a finalists pick is worth: `bonus` for each picked team that's an official finalist. */
 export function getChampionPoints(
-  pick: Pick<ChampionPick, 'team'> | null | undefined,
-  champion: string | null,
+  pick: Pick<ChampionPick, 'teams'> | null | undefined,
+  finalists: string[] | null,
   bonus: number
 ): number {
-  return champion != null && pick?.team === champion ? bonus : 0;
+  if (finalists == null || !pick?.teams) return 0;
+  const correct = pick.teams.filter((team) => finalists.includes(team)).length;
+  return correct * bonus;
 }
 
-/** Combines each user's prediction points with their (on-the-fly) champion bonus. */
+/** Combines each user's prediction points with their (on-the-fly) finalists bonus. */
 export function buildLeaderboardEntries(
   users: { uid: string; name: string; photoURL: string; predictionPoints: number }[],
   picksByUid: Record<string, ChampionPick>,
-  champion: string | null,
+  finalists: string[] | null,
   championBonus: number
 ): LeaderboardEntry[] {
   return users.map((u) => ({
     uid: u.uid,
     name: u.name,
     photoURL: u.photoURL,
-    totalPoints: u.predictionPoints + getChampionPoints(picksByUid[u.uid], champion, championBonus),
+    totalPoints: u.predictionPoints + getChampionPoints(picksByUid[u.uid], finalists, championBonus),
   }));
 }
 

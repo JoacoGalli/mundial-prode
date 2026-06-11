@@ -76,7 +76,7 @@ export default function Dashboard() {
     : users;
 
   const prizeConfig = selectedGroup ?? settings;
-  const entries = buildLeaderboardEntries(scopedUsers, picksByUid, settings.champion, prizeConfig.championBonus);
+  const entries = buildLeaderboardEntries(scopedUsers, picksByUid, settings.finalists, prizeConfig.championBonus);
   const ranked = calculateWinners(entries, prizeConfig);
   const hasPrizePool = prizeConfig.prizePool > 0;
 

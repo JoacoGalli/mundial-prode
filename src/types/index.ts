@@ -53,17 +53,18 @@ export interface AppSettings {
   currency: 'ARS' | 'USD';
   distribution: number[];
   adminUIDs: string[];
-  /** Official World Cup winner, set by the admin once the tournament ends. */
-  champion: string | null;
-  /** Bonus points awarded to users who picked the champion correctly. */
+  /** The two official World Cup finalists, set by the admin once they're known. */
+  finalists: string[] | null;
+  /** Bonus points awarded per finalist a user correctly picked. */
   championBonus: number;
-  /** When true, players can no longer change their champion pick. */
+  /** When true, players can no longer change their finalists pick. */
   championPicksLocked: boolean;
 }
 
 export interface ChampionPick {
   uid: string;
-  team: string;
+  /** The two teams the user picked as finalists. */
+  teams: string[];
 }
 
 export interface Group {

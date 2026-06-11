@@ -59,12 +59,13 @@ export default function HowItWorks() {
       </div>
 
       <div className="card section">
-        <h3 className="muted" style={{ marginBottom: '0.75rem' }}>Pronóstico del campeón</h3>
+        <h3 className="muted" style={{ marginBottom: '0.75rem' }}>Pronóstico de finalistas</h3>
         <p className="muted" style={{ marginTop: 0, marginBottom: 0, fontSize: '0.9rem' }}>
-          Además, elegís una vez (antes de que se cierren los pronósticos de campeón) qué
-          selección creés que va a salir campeona del mundial. Si acertás, sumás{' '}
-          <span className="badge badge-points">+{settings.championBonus} pts</span> extra a tu
-          puntaje en la tabla general (<code>/</code> y <code>/premios</code>).
+          Además, elegís una vez (antes de que se cierren los pronósticos de finalistas) qué
+          dos selecciones creés que van a llegar a la final del mundial. Por cada una que
+          aciertes sumás <span className="badge badge-points">+{settings.championBonus} pts</span>{' '}
+          extra a tu puntaje en la tabla (hasta {settings.championBonus * 2} pts si acertás
+          las dos).
         </p>
       </div>
 
@@ -72,10 +73,10 @@ export default function HowItWorks() {
         <h3 className="muted" style={{ marginBottom: '0.75rem' }}>Tabla de posiciones y premios</h3>
         <p className="muted" style={{ marginTop: 0, fontSize: '0.9rem' }}>
           Tu puntaje total es la suma de los puntos de todos tus pronósticos de partidos, más
-          el bonus de campeón si corresponde:
+          el bonus de finalistas si corresponde:
         </p>
         <p className="card center" style={{ fontWeight: 600, margin: '0 0 0.75rem' }}>
-          Puntaje total = puntos de pronósticos + bonus de campeón (si acertaste)
+          Puntaje total = puntos de pronósticos + bonus de finalistas (por cada acierto)
         </p>
         <p className="muted" style={{ marginTop: 0, marginBottom: 0, fontSize: '0.9rem' }}>
           Con ese puntaje se arma el ranking, y los primeros puestos se reparten el pozo de
@@ -86,9 +87,9 @@ export default function HowItWorks() {
       <div className="card">
         <h3 className="muted" style={{ marginBottom: '0.75rem' }}>Grupos / torneos privados</h3>
         <p className="muted" style={{ marginTop: 0, marginBottom: 0, fontSize: '0.9rem' }}>
-          Tus pronósticos de partidos y tu pick de campeón son <strong>los mismos en toda la
+          Tus pronósticos de partidos y tu pick de finalistas son <strong>los mismos en toda la
           app</strong>. Lo que puede cambiar entre la tabla general y cada grupo al que te
-          unas es el <strong>bonus de campeón</strong>, el <strong>pozo de premios</strong> y
+          unas es el <strong>bonus de finalistas</strong>, el <strong>pozo de premios</strong> y
           su <strong>distribución</strong>: cada grupo arma su propio ranking y premios a
           partir de tus mismos puntos de pronósticos.
         </p>

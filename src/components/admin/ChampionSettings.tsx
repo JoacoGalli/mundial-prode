@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Loader2, Lock, Trophy, Unlock } from 'lucide-react';
-import { setChampion, toggleChampionPicksLocked } from '../../services/championPicks';
+import { setFinalists, toggleChampionPicksLocked } from '../../services/championPicks';
 import { updateSettings } from '../../services/settings';
 import type { AppSettings } from '../../types';
 
@@ -13,8 +13,11 @@ export default function ChampionSettings({ teams, settings }: ChampionSettingsPr
   const [bonus, setBonus] = useState(settings.championBonus);
   const [savingBonus, setSavingBonus] = useState(false);
   const [toggling, setToggling] = useState(false);
-  const [champion, setChampionTeam] = useState(settings.champion ?? '');
+  const [finalist1, setFinalist1] = useState(settings.finalists?.[0] ?? '');
+  const [finalist2, setFinalist2] = useState(settings.finalists?.[1] ?? '');
   const [confirming, setConfirming] = useState(false);
+
+  const canConfirm = !!finalist1 && !!finalist2 && finalist1 !== finalist2;
 
   const handleSaveBonus = async () => {
     setSavingBonus(true);
@@ -34,17 +37,17 @@ export default function ChampionSettings({ teams, settings }: ChampionSettingsPr
     }
   };
 
-  const handleConfirmChampion = async () => {
-    if (!champion) return;
+  const handleConfirmFinalists = async () => {
+    if (!canConfirm) return;
     if (
       !confirm(
-        `¿Confirmar a ${champion} como campeón del Mundial? Esto suma ${bonus} pts a quienes lo hayan pronosticado y cierra los pronósticos de campeón.`
+        `¿Confirmar a ${finalist1} y ${finalist2} como finalistas del Mundial? Esto suma ${bonus} pts por cada finalista acertado y cierra los pronósticos.`
       )
     )
       return;
     setConfirming(true);
     try {
-      await setChampion(champion);
+      await setFinalists([finalist1, finalist2]);
     } finally {
       setConfirming(false);
     }
@@ -53,13 +56,13 @@ export default function ChampionSettings({ teams, settings }: ChampionSettingsPr
   return (
     <div className="card section">
       <h3 className="muted" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.75rem' }}>
-        <Trophy size={18} color="var(--color-gold)" /> Campeón del Mundial
+        <Trophy size={18} color="var(--color-gold)" /> Finalistas del Mundial
       </h3>
 
       <div className="flex gap-md" style={{ flexWrap: 'wrap', marginBottom: '1rem', alignItems: 'flex-end' }}>
         <div>
           <label className="muted" style={{ display: 'block', fontSize: '0.8rem', marginBottom: '0.25rem' }}>
-            Puntos de bonus por acertar
+            Puntos de bonus por cada finalista acertado
           </label>
           <div className="flex gap-sm">
             <input
@@ -78,7 +81,7 @@ export default function ChampionSettings({ teams, settings }: ChampionSettingsPr
 
         <div>
           <label className="muted" style={{ display: 'block', fontSize: '0.8rem', marginBottom: '0.25rem' }}>
-            Pronósticos de campeón
+            Pronósticos de finalistas
           </label>
           <button className="btn btn-secondary" onClick={handleToggleLock} disabled={toggling}>
             {toggling ? (
@@ -93,33 +96,49 @@ export default function ChampionSettings({ teams, settings }: ChampionSettingsPr
         </div>
       </div>
 
-      {settings.champion ? (
+      {settings.finalists ? (
         <p>
-          🏆 Campeón confirmado: <strong>{settings.champion}</strong>
+          🏆 Finalistas confirmados: <strong>{settings.finalists[0]}</strong> y{' '}
+          <strong>{settings.finalists[1]}</strong>
         </p>
       ) : (
         <>
           <label className="muted" style={{ display: 'block', fontSize: '0.8rem', marginBottom: '0.5rem' }}>
-            Confirmar campeón real (recalcula puntos y cierra los pronósticos)
+            Confirmar los dos finalistas reales (recalcula puntos y cierra los pronósticos)
           </label>
           <div className="flex gap-sm" style={{ flexWrap: 'wrap' }}>
             <select
               className="input"
-              value={champion}
-              onChange={(e) => setChampionTeam(e.target.value)}
+              value={finalist1}
+              onChange={(e) => setFinalist1(e.target.value)}
               style={{ minWidth: '12rem' }}
             >
               <option value="" disabled>
-                Elegí un equipo
+                Finalista 1
               </option>
               {teams.map((t) => (
-                <option key={t} value={t}>
+                <option key={t} value={t} disabled={t === finalist2}>
                   {t}
                 </option>
               ))}
             </select>
-            <button className="btn btn-primary" onClick={handleConfirmChampion} disabled={!champion || confirming}>
-              {confirming ? <Loader2 size={16} className="spin" /> : 'Confirmar Campeón'}
+            <select
+              className="input"
+              value={finalist2}
+              onChange={(e) => setFinalist2(e.target.value)}
+              style={{ minWidth: '12rem' }}
+            >
+              <option value="" disabled>
+                Finalista 2
+              </option>
+              {teams.map((t) => (
+                <option key={t} value={t} disabled={t === finalist1}>
+                  {t}
+                </option>
+              ))}
+            </select>
+            <button className="btn btn-primary" onClick={handleConfirmFinalists} disabled={!canConfirm || confirming}>
+              {confirming ? <Loader2 size={16} className="spin" /> : 'Confirmar Finalistas'}
             </button>
           </div>
         </>

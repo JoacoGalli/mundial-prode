@@ -57,7 +57,7 @@ export default function GroupDetail() {
   const approvedUids = new Set(members.filter((m) => m.status === 'approved').map((m) => m.uid));
   const groupUsers = users.filter((u) => approvedUids.has(u.uid));
   const picksByUid = Object.fromEntries(picks.map((p) => [p.uid, p]));
-  const entries = buildLeaderboardEntries(groupUsers, picksByUid, settings.champion, group.championBonus);
+  const entries = buildLeaderboardEntries(groupUsers, picksByUid, settings.finalists, group.championBonus);
   const ranked = calculateWinners(entries, group);
   const hasPrizePool = group.prizePool > 0;
   const isMember = !!user && members.some((m) => m.uid === user.uid && m.status === 'approved');

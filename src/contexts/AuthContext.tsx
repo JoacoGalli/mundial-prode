@@ -31,7 +31,7 @@ const DEFAULT_SETTINGS: Omit<AppSettings, 'adminUIDs'> = {
   prizePool: 0,
   currency: 'ARS',
   distribution: [70, 30],
-  champion: null,
+  finalists: null,
   championBonus: 25,
   championPicksLocked: false,
 };
@@ -112,7 +112,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const data = snap.data() as AppSettings;
         setSettings({
           ...data,
-          champion: data.champion ?? null,
+          finalists: data.finalists ?? null,
           championBonus: data.championBonus ?? 25,
           championPicksLocked: data.championPicksLocked ?? false,
         });

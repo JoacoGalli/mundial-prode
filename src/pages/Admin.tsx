@@ -95,7 +95,7 @@ export default function Admin() {
 
   const handleCalculateWinners = () => {
     const picksByUid = Object.fromEntries(picks.map((p) => [p.uid, p]));
-    const entries = buildLeaderboardEntries(users, picksByUid, settings.champion, settings.championBonus);
+    const entries = buildLeaderboardEntries(users, picksByUid, settings.finalists, settings.championBonus);
     setWinners(calculateWinners(entries, settings));
   };
 

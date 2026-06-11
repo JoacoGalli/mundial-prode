@@ -56,7 +56,7 @@ export default function MyPredictions() {
           teams={teams}
           pick={championPick}
           settings={settings}
-          onSave={(team) => saveChampionPick(user.uid, team)}
+          onSave={(teams) => saveChampionPick(user.uid, teams)}
         />
       )}
 

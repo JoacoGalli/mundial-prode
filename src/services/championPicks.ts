@@ -20,8 +20,8 @@ export function subscribeToAllChampionPicks(callback: (picks: ChampionPick[]) =>
   });
 }
 
-export async function saveChampionPick(uid: string, team: string) {
-  await setDoc(doc(championPicksCol, uid), { uid, team }, { merge: true });
+export async function saveChampionPick(uid: string, teams: string[]) {
+  await setDoc(doc(championPicksCol, uid), { uid, teams }, { merge: true });
 }
 
 export async function toggleChampionPicksLocked(locked: boolean) {
@@ -29,10 +29,10 @@ export async function toggleChampionPicksLocked(locked: boolean) {
 }
 
 /**
- * Admin: declare the official World Cup champion and lock further changes
- * to picks. Champion bonus points are computed on the fly wherever a
+ * Admin: declare the two official World Cup finalists and lock further
+ * changes to picks. Bonus points are computed on the fly wherever a
  * leaderboard is rendered, so no recalculation is needed here.
  */
-export async function setChampion(team: string) {
-  await updateSettings({ champion: team, championPicksLocked: true });
+export async function setFinalists(teams: string[]) {
+  await updateSettings({ finalists: teams, championPicksLocked: true });
 }
