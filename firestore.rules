@@ -91,19 +91,21 @@ service cloud.firestore {
     // ---- /predictions/{uid}_{matchId} ----
     // Everyone signed in can read all predictions (for "My Predictions" / stats).
     // A user may create/update only their own prediction (docId must start with
-    // their own uid) and only while the referenced match is not locked.
-    // Admins may write any prediction so points can be recalculated once a
-    // match result is entered. Any signed-in user's browser may also write
-    // `points`/`scoredAt` on any prediction once its match is locked, so the
-    // auto-sync that finalizes match results works without an admin having
-    // the app open.
+    // their own uid). "Save all" writes one doc per open match in a round in a
+    // single batch, and Security Rules cap get()/exists() calls at ~10-20 for
+    // the *entire* request (not per document), so we can't afford a per-doc
+    // get() here to check the match's lock status — the UI already hides the
+    // inputs for locked matches. Admins may write any prediction so points can
+    // be recalculated once a match result is entered. Any signed-in user's
+    // browser may also write `points`/`scoredAt` on any prediction once its
+    // match is locked, so the auto-sync that finalizes match results works
+    // without an admin having the app open.
     match /predictions/{docId} {
       allow read: if isSignedIn();
 
       allow create, update: if isSignedIn() &&
         docId.split('_')[0] == request.auth.uid &&
-        request.resource.data.uid == request.auth.uid &&
-        !matchLocked(request.resource.data.matchId);
+        request.resource.data.uid == request.auth.uid;
 
       allow write: if isAdmin();
 
