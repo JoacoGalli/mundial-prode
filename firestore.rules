@@ -28,6 +28,13 @@ service cloud.firestore {
       return ('championPicksLocked' in cfg) && cfg.championPicksLocked == true;
     }
 
+    // Same `in`-before-dot-access pattern as championPicksLocked(): matches
+    // created before the `locked` field existed are treated as "not locked".
+    function matchLocked(matchId) {
+      let m = get(/databases/$(database)/documents/matches/$(matchId)).data;
+      return ('locked' in m) && m.locked == true;
+    }
+
     // ---- /config/settings ----
     // Everyone signed in can read the config (prize pool, distribution, admin list).
     // The very first authenticated user may CREATE /config/settings (bootstrapping
@@ -96,13 +103,13 @@ service cloud.firestore {
       allow create, update: if isSignedIn() &&
         docId.split('_')[0] == request.auth.uid &&
         request.resource.data.uid == request.auth.uid &&
-        get(/databases/$(database)/documents/matches/$(request.resource.data.matchId)).data.get('locked', false) != true;
+        !matchLocked(request.resource.data.matchId);
 
       allow write: if isAdmin();
 
       allow update: if isSignedIn() &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['points', 'scoredAt']) &&
-        get(/databases/$(database)/documents/matches/$(resource.data.matchId)).data.get('locked', false) == true;
+        matchLocked(resource.data.matchId);
 
       allow delete: if false;
     }
