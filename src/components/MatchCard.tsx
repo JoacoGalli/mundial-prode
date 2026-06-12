@@ -23,6 +23,17 @@ export default function MatchCard({ match, prediction, onChange, usersById }: Ma
   const hasResult = match.result != null;
   const isLive = !hasResult && match.liveScore != null;
 
+  // `prediction` arrives asynchronously after this component's first render
+  // (the saved-predictions subscription is slower than the matches one), so
+  // the `useState` initial values above are usually 0/0. Sync local state
+  // once the real saved values come in.
+  useEffect(() => {
+    if (prediction) {
+      setHome(prediction.home);
+      setAway(prediction.away);
+    }
+  }, [prediction?.home, prediction?.away]);
+
   useEffect(() => {
     if (!showPredictions) return;
     const unsubscribe = subscribeToMatchPredictions(match.id, setAllPredictions);
