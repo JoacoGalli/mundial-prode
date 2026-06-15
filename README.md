@@ -115,6 +115,7 @@ VITE_FIREBASE_PROJECT_ID=tu_proyecto
 VITE_FIREBASE_STORAGE_BUCKET=tu_proyecto.appspot.com
 VITE_FIREBASE_MESSAGING_SENDER_ID=123456789012
 VITE_FIREBASE_APP_ID=1:123456789012:web:abcdef123456
+VITE_FOOTBALL_DATA_API_KEY=tu_api_key_de_football-data.org
 ```
 
 > ⚠️ Si vas a deployar a GitHub Pages, también necesitás cargar estas mismas
@@ -122,6 +123,18 @@ VITE_FIREBASE_APP_ID=1:123456789012:web:abcdef123456
 > ya que `.env.local` no se commitea. Una opción simple es crear un
 > `.env.production` local (tampoco commiteado) con los mismos valores antes
 > de correr `npm run deploy`.
+
+### Resultados: TheSportsDB + football-data.org
+
+Los resultados oficiales y el marcador en vivo se sincronizan automáticamente
+desde [TheSportsDB](https://www.thesportsdb.com/) (no requiere API key). Como
+esa API gratuita a veces no lista algún partido puntual (pasó con Australia
+vs Turquía y Países Bajos vs Japón en la Fecha 1), la app usa
+[football-data.org](https://www.football-data.org/) como respaldo cuando
+TheSportsDB no encuentra el partido. Sacá una API key gratis en
+https://www.football-data.org/client/register (cubre el Mundial en el plan
+gratuito) y agregala como `VITE_FOOTBALL_DATA_API_KEY`. Si no la configurás,
+la app sigue funcionando normalmente, solo sin ese respaldo.
 
 ---
 

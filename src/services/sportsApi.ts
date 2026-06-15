@@ -5,6 +5,9 @@ const THESPORTSDB_BASE = 'https://www.thesportsdb.com/api/v1/json/3';
 const WORLD_CUP_LEAGUE_ID = '4429';
 const WORLD_CUP_SEASON = '2026';
 
+const FOOTBALL_DATA_BASE = 'https://api.football-data.org/v4';
+const FOOTBALL_DATA_API_KEY = import.meta.env.VITE_FOOTBALL_DATA_API_KEY;
+
 interface TheSportsDbEvent {
   idEvent: string;
   strHomeTeam: string;
@@ -238,7 +241,82 @@ export async function fetchEventStatus(
       : { home: away, away: home, status: event.strStatus, finished };
   }
 
-  return null;
+  // TheSportsDB's free API occasionally never lists a given event under
+  // /eventsday for league 4429 (seen with Australia vs Turkey and Netherlands
+  // vs Japan), even though its own website has the result. Fall back to
+  // football-data.org, which reliably covers the World Cup.
+  return fetchEventStatusFromFootballData(apiTeamA, apiTeamB);
+}
+
+interface FootballDataMatch {
+  status: string;
+  homeTeam: { name: string | null };
+  awayTeam: { name: string | null };
+  score: { fullTime: { home: number | null; away: number | null } };
+}
+
+/** football-data.org team name -> TheSportsDB team name, for the names that differ. */
+const FOOTBALL_DATA_TEAM_NAME: Record<string, string> = {
+  'Cape Verde Islands': 'Cape Verde',
+  Czechia: 'Czech Republic',
+  'Congo DR': 'DR Congo',
+  'United States': 'USA',
+};
+
+function normalizeFootballDataTeamName(name: string): string {
+  return FOOTBALL_DATA_TEAM_NAME[name] ?? name;
+}
+
+const FOOTBALL_DATA_FINISHED_STATUSES = new Set(['FINISHED', 'AWARDED']);
+const FOOTBALL_DATA_LIVE_STATUSES = new Set(['IN_PLAY', 'PAUSED']);
+
+const FOOTBALL_DATA_CACHE_MS = 60 * 1000;
+let footballDataCache: { fetchedAt: number; matches: FootballDataMatch[] } | null = null;
+
+/**
+ * Fetch all World Cup 2026 matches from football-data.org once and cache them
+ * for a minute, so polling every pending match doesn't burn through the free
+ * tier's 10 requests/minute limit.
+ */
+async function fetchFootballDataMatches(): Promise<FootballDataMatch[]> {
+  if (!FOOTBALL_DATA_API_KEY) return [];
+  if (footballDataCache && Date.now() - footballDataCache.fetchedAt < FOOTBALL_DATA_CACHE_MS) {
+    return footballDataCache.matches;
+  }
+
+  const res = await fetch(`${FOOTBALL_DATA_BASE}/competitions/WC/matches`, {
+    headers: { 'X-Auth-Token': FOOTBALL_DATA_API_KEY },
+  });
+  if (!res.ok) return footballDataCache?.matches ?? [];
+
+  const data = await res.json();
+  footballDataCache = { fetchedAt: Date.now(), matches: (data?.matches ?? []) as FootballDataMatch[] };
+  return footballDataCache.matches;
+}
+
+async function fetchEventStatusFromFootballData(
+  apiTeamA: string,
+  apiTeamB: string
+): Promise<EventStatus | null> {
+  const matches = await fetchFootballDataMatches();
+
+  const match = matches.find((m) => {
+    const home = normalizeFootballDataTeamName(m.homeTeam.name ?? '');
+    const away = normalizeFootballDataTeamName(m.awayTeam.name ?? '');
+    return (home === apiTeamA && away === apiTeamB) || (home === apiTeamB && away === apiTeamA);
+  });
+  if (!match) return null;
+
+  const { home, away } = match.score.fullTime;
+  if (home == null || away == null) return null;
+
+  const finished = FOOTBALL_DATA_FINISHED_STATUSES.has(match.status);
+  if (!finished && !FOOTBALL_DATA_LIVE_STATUSES.has(match.status)) return null;
+
+  const homeIsTeamA = normalizeFootballDataTeamName(match.homeTeam.name ?? '') === apiTeamA;
+  return homeIsTeamA
+    ? { home, away, status: match.status, finished }
+    : { home: away, away: home, status: match.status, finished };
 }
 
 export interface FixtureEvent {
