@@ -4,7 +4,7 @@ import { fetchEventStatus } from '../services/sportsApi';
 import { isMatchLocked } from '../utils/format';
 import type { Match, MatchResult } from '../types';
 
-const POLL_INTERVAL_MS = 30 * 1000;
+const POLL_INTERVAL_MS = 3 * 60 * 1000; // 3 minutes
 
 interface LiveOverlay {
   liveScore: MatchResult;

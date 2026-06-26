@@ -5,6 +5,7 @@ import {
   onSnapshot,
   orderBy,
   query,
+  runTransaction,
   Timestamp,
   updateDoc,
   where,
@@ -35,8 +36,18 @@ export function subscribeToMatches(callback: (matches: Match[]) => void) {
  */
 export async function setMatchResult(matchId: string, result: MatchResult) {
   const matchRef = doc(db, 'matches', matchId);
-  // This is the critical write — throws if it fails so the caller sees the error.
-  await updateDoc(matchRef, { result, locked: true, liveScore: null, liveStatus: null });
+
+  // Transaction: only the first client to arrive sets the result.
+  // Others detect it's already set and return early, preventing a thundering-herd
+  // of simultaneous point recalculations when multiple users have the app open.
+  const alreadySet = await runTransaction(db, async (tx) => {
+    const snap = await tx.get(matchRef);
+    if (snap.data()?.result != null) return true;
+    tx.update(matchRef, { result, locked: true, liveScore: null, liveStatus: null });
+    return false;
+  });
+
+  if (alreadySet) return;
 
   // Point recalculation is best-effort: a failure here doesn't roll back the result.
   try {

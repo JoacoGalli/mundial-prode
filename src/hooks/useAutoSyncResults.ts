@@ -5,8 +5,8 @@ import { fetchEventStatus } from '../services/sportsApi';
 import { isMatchLocked } from '../utils/format';
 import type { Match } from '../types';
 
-const RESULTS_INTERVAL_MS = 30 * 1000; // 30 seconds
-const FIXTURES_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+const RESULTS_INTERVAL_MS = 3 * 60 * 1000; // 3 minutes
+const FIXTURES_INTERVAL_MS = 15 * 60 * 1000; // 15 minutes
 
 /**
  * For any signed-in user: periodically (on load and every 30 seconds while
