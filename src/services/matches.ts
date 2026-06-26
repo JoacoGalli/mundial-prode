@@ -35,11 +35,21 @@ export function subscribeToMatches(callback: (matches: Match[]) => void) {
  */
 export async function setMatchResult(matchId: string, result: MatchResult) {
   const matchRef = doc(db, 'matches', matchId);
+  // This is the critical write — throws if it fails so the caller sees the error.
   await updateDoc(matchRef, { result, locked: true, liveScore: null, liveStatus: null });
 
-  // Recalculate points for all predictions on this match
+  // Point recalculation is best-effort: a failure here doesn't roll back the result.
+  try {
+    await recalculateMatchPoints(matchId, result);
+  } catch (err) {
+    console.error('Error recalculando puntos (el resultado sí se guardó):', err);
+  }
+}
+
+async function recalculateMatchPoints(matchId: string, result: MatchResult) {
   const predsQuery = query(collection(db, 'predictions'), where('matchId', '==', matchId));
   const predsSnap = await getDocs(predsQuery);
+  if (predsSnap.empty) return;
 
   const batch = writeBatch(db);
   const affectedUIDs = new Set<string>();
@@ -52,8 +62,6 @@ export async function setMatchResult(matchId: string, result: MatchResult) {
   });
 
   await batch.commit();
-
-  // Recompute total points for every affected user
   await Promise.all([...affectedUIDs].map((uid) => recalculateUserTotalPoints(uid)));
 }
 
