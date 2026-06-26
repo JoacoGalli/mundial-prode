@@ -14,7 +14,7 @@ import { db } from '../lib/firebase';
 import { calculatePoints } from '../utils/scoring';
 import type { Match, MatchResult } from '../types';
 import { seedMatches } from '../data/matches';
-import { fetchSeasonEvents } from './sportsApi';
+import { fetchEventStatus, fetchSeasonEvents } from './sportsApi';
 
 const matchesCol = collection(db, 'matches');
 
@@ -129,6 +129,49 @@ export async function syncFixtureFromApi(): Promise<number> {
   await batch.commit();
 
   return newFixtures.length;
+}
+
+export interface SyncResultsSummary {
+  updated: number;
+  /** Matches that were locked but not found in the API (need manual entry). */
+  notInApi: { teamA: string; teamB: string }[];
+}
+
+/**
+ * Check every locked match without an official result against TheSportsDB.
+ * Sets the official result for any finished match found; returns how many were
+ * updated and which were not found in the API (need manual entry).
+ */
+export async function syncAllPendingResults(): Promise<SyncResultsSummary> {
+  const now = Date.now();
+  const snap = await getDocs(matchesCol);
+  const pending = snap.docs
+    .map((d) => ({ id: d.id, ...(d.data() as Omit<Match, 'id'>) }))
+    .filter((m) => m.result == null && (m.locked || (m.datetime?.toMillis?.() ?? 0) <= now) && m.apiTeamA && m.apiTeamB);
+
+  let updated = 0;
+  const notInApi: { teamA: string; teamB: string }[] = [];
+
+  await Promise.all(
+    pending.map(async (match) => {
+      try {
+        const dateISO = match.datetime.toDate().toISOString().slice(0, 10);
+        const status = await fetchEventStatus(dateISO, match.apiTeamA!, match.apiTeamB!);
+        if (!status) {
+          notInApi.push({ teamA: match.teamA, teamB: match.teamB });
+          return;
+        }
+        if (status.finished) {
+          await setMatchResult(match.id, { home: status.home, away: status.away });
+          updated++;
+        }
+      } catch {
+        notInApi.push({ teamA: match.teamA, teamB: match.teamB });
+      }
+    })
+  );
+
+  return { updated, notInApi };
 }
 
 /** Push the World Cup 2026 group-stage fixtures into Firestore (admin only). */

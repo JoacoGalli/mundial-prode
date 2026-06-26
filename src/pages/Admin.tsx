@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
-import { AlertTriangle, Loader2, RefreshCw, Trophy, Upload } from 'lucide-react';
+import { AlertTriangle, Download, Loader2, RefreshCw, Trophy, Upload } from 'lucide-react';
 import {
   subscribeToMatches,
   seedMatchesToFirestore,
   syncFixtureFromApi,
+  syncAllPendingResults,
   replaceFixtureWithFullGroupStage,
 } from '../services/matches';
 import { subscribeToLeaderboard } from '../services/users';
@@ -30,6 +31,8 @@ export default function Admin() {
   const [seeding, setSeeding] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
+  const [syncingResults, setSyncingResults] = useState(false);
+  const [syncResultsMessage, setSyncResultsMessage] = useState<string | null>(null);
   const [replacing, setReplacing] = useState(false);
   const [winners, setWinners] = useState<RankedUser[] | null>(null);
 
@@ -93,6 +96,25 @@ export default function Admin() {
     }
   };
 
+  const handleSyncResults = async () => {
+    setSyncingResults(true);
+    setSyncResultsMessage(null);
+    try {
+      const { updated, notInApi } = await syncAllPendingResults();
+      const parts: string[] = [];
+      if (updated > 0) parts.push(`${updated} resultado(s) actualizados.`);
+      if (notInApi.length > 0) {
+        parts.push(`${notInApi.length} partido(s) no encontrados en la API (cargalos manualmente): ${notInApi.map((m) => `${m.teamA} vs ${m.teamB}`).join(', ')}.`);
+      }
+      if (parts.length === 0) parts.push('No hay partidos pendientes de resultado.');
+      setSyncResultsMessage(parts.join(' '));
+    } catch {
+      setSyncResultsMessage('Error al conectar con TheSportsDB.');
+    } finally {
+      setSyncingResults(false);
+    }
+  };
+
   const handleCalculateWinners = () => {
     const picksByUid = Object.fromEntries(picks.map((p) => [p.uid, p]));
     const entries = buildLeaderboardEntries(users, picksByUid, settings.finalists, settings.championBonus);
@@ -128,6 +150,26 @@ export default function Admin() {
         {syncMessage && (
           <p className="muted" style={{ marginTop: '0.75rem', marginBottom: 0, fontSize: '0.85rem' }}>
             {syncMessage}
+          </p>
+        )}
+
+        <div className="flex-between" style={{ flexWrap: 'wrap', gap: '0.75rem', marginTop: '1.25rem', paddingTop: '1.25rem', borderTop: '1px dashed rgba(255, 255, 255, 0.12)' }}>
+          <div>
+            <h3 className="muted">Sincronizar resultados</h3>
+            <p className="muted" style={{ fontSize: '0.85rem', margin: 0 }}>
+              Consulta TheSportsDB y carga automáticamente los resultados finales de todos los
+              partidos que ya terminaron. Los partidos que la API no tiene los tenés que cargar
+              vos a mano en la tabla de abajo.
+            </p>
+          </div>
+          <button className="btn btn-secondary" onClick={handleSyncResults} disabled={syncingResults}>
+            {syncingResults ? <Loader2 size={16} className="spin" /> : <Download size={16} />}
+            Sincronizar resultados
+          </button>
+        </div>
+        {syncResultsMessage && (
+          <p className="muted" style={{ marginTop: '0.75rem', marginBottom: 0, fontSize: '0.85rem' }}>
+            {syncResultsMessage}
           </p>
         )}
 

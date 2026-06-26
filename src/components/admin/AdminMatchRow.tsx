@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Loader2, Lock, Unlock } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Check, Loader2, Lock, Unlock, X } from 'lucide-react';
 import type { Match } from '../../types';
 import { formatDateTime } from '../../utils/format';
 import { lockMatch, setMatchResult } from '../../services/matches';
@@ -7,15 +7,29 @@ import { lockMatch, setMatchResult } from '../../services/matches';
 export default function AdminMatchRow({ match }: { match: Match }) {
   const [home, setHome] = useState(match.result?.home ?? 0);
   const [away, setAway] = useState(match.result?.away ?? 0);
-  const [saving, setSaving] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'ok' | 'error'>('idle');
   const [toggling, setToggling] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Sync inputs when result changes externally (e.g. auto-sync sets an official result).
+  useEffect(() => {
+    if (match.result != null) {
+      setHome(match.result.home);
+      setAway(match.result.away);
+    }
+  }, [match.result?.home, match.result?.away]);
 
   const handleSave = async () => {
-    setSaving(true);
+    setSaveStatus('saving');
+    if (timerRef.current) clearTimeout(timerRef.current);
     try {
       await setMatchResult(match.id, { home, away });
+      setSaveStatus('ok');
+    } catch (err) {
+      console.error('Error guardando resultado:', err);
+      setSaveStatus('error');
     } finally {
-      setSaving(false);
+      timerRef.current = setTimeout(() => setSaveStatus('idle'), 3000);
     }
   };
 
@@ -65,8 +79,15 @@ export default function AdminMatchRow({ match }: { match: Match }) {
         </button>
       </td>
       <td>
-        <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
-          {saving ? <Loader2 size={16} className="spin" /> : 'Guardar resultado'}
+        <button
+          className={`btn ${saveStatus === 'error' ? 'btn-danger' : 'btn-primary'}`}
+          onClick={handleSave}
+          disabled={saveStatus === 'saving'}
+        >
+          {saveStatus === 'saving' && <Loader2 size={16} className="spin" />}
+          {saveStatus === 'ok' && <Check size={16} />}
+          {saveStatus === 'error' && <X size={16} />}
+          {saveStatus === 'saving' ? 'Guardando…' : saveStatus === 'ok' ? 'Guardado' : saveStatus === 'error' ? 'Error al guardar' : 'Guardar resultado'}
         </button>
       </td>
     </tr>
