@@ -33,16 +33,21 @@ export function subscribeToMatches(callback: (matches: Match[]) => void) {
 /**
  * Set the official result for a match, lock it, and recalculate points
  * for every prediction submitted for that match.
+ *
+ * By default, only the first caller to arrive sets the result: others detect
+ * it's already set and return early, preventing a thundering-herd of
+ * simultaneous point recalculations when multiple users have the app open
+ * and the auto-sync hook fires for all of them at once. Pass `force: true`
+ * (used by the admin manual-edit UI) to always overwrite the existing result
+ * — e.g. to correct a result the API reported including extra time/penalties
+ * with the 90-minute score.
  */
-export async function setMatchResult(matchId: string, result: MatchResult) {
+export async function setMatchResult(matchId: string, result: MatchResult, force = false) {
   const matchRef = doc(db, 'matches', matchId);
 
-  // Transaction: only the first client to arrive sets the result.
-  // Others detect it's already set and return early, preventing a thundering-herd
-  // of simultaneous point recalculations when multiple users have the app open.
   const alreadySet = await runTransaction(db, async (tx) => {
     const snap = await tx.get(matchRef);
-    if (snap.data()?.result != null) return true;
+    if (!force && snap.data()?.result != null) return true;
     tx.update(matchRef, { result, locked: true, liveScore: null, liveStatus: null });
     return false;
   });
@@ -154,12 +159,19 @@ export interface SyncResultsSummary {
   updated: number;
   /** Matches that were locked but not found in the API (need manual entry). */
   notInApi: { teamA: string; teamB: string }[];
+  /**
+   * Matches that finished in extra time or penalties: TheSportsDB only
+   * reports the final score, but predictions count the 90-minute result, so
+   * these need the 90' score entered manually.
+   */
+  needsManualEntry: { teamA: string; teamB: string }[];
 }
 
 /**
  * Check every locked match without an official result against TheSportsDB.
- * Sets the official result for any finished match found; returns how many were
- * updated and which were not found in the API (need manual entry).
+ * Sets the official result for any match finished within regulation time;
+ * returns how many were updated, which weren't found in the API, and which
+ * finished in extra time/penalties (both need manual entry).
  */
 export async function syncAllPendingResults(): Promise<SyncResultsSummary> {
   const now = Date.now();
@@ -170,6 +182,7 @@ export async function syncAllPendingResults(): Promise<SyncResultsSummary> {
 
   let updated = 0;
   const notInApi: { teamA: string; teamB: string }[] = [];
+  const needsManualEntry: { teamA: string; teamB: string }[] = [];
 
   await Promise.all(
     pending.map(async (match) => {
@@ -180,9 +193,11 @@ export async function syncAllPendingResults(): Promise<SyncResultsSummary> {
           notInApi.push({ teamA: match.teamA, teamB: match.teamB });
           return;
         }
-        if (status.finished) {
+        if (status.finished && status.resultReliable) {
           await setMatchResult(match.id, { home: status.home, away: status.away });
           updated++;
+        } else if (status.finished) {
+          needsManualEntry.push({ teamA: match.teamA, teamB: match.teamB });
         }
       } catch {
         notInApi.push({ teamA: match.teamA, teamB: match.teamB });
@@ -190,7 +205,7 @@ export async function syncAllPendingResults(): Promise<SyncResultsSummary> {
     })
   );
 
-  return { updated, notInApi };
+  return { updated, notInApi, needsManualEntry };
 }
 
 /** Push the World Cup 2026 group-stage fixtures into Firestore (admin only). */

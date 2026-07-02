@@ -3,7 +3,6 @@ import { mapApiRound } from '../utils/rounds';
 
 const THESPORTSDB_BASE = 'https://www.thesportsdb.com/api/v1/json/3';
 const WORLD_CUP_LEAGUE_ID = '4429';
-const WORLD_CUP_SEASON = '2026';
 
 interface TheSportsDbEvent {
   idEvent: string;
@@ -191,11 +190,26 @@ const FINISHED_STATUSES = new Set([
   'Finished',
 ]);
 
+/**
+ * Statuses where TheSportsDB's score is the *final* score after extra time
+ * and/or penalties rather than the 90-minute score. Our rule is that
+ * predictions only count the 90-minute result, and the API doesn't expose
+ * the interim score separately, so matches ending this way can't be
+ * auto-applied as the official result — an admin has to enter the 90' score.
+ */
+const EXTRA_TIME_STATUSES = new Set(['AET', 'PEN']);
+
 export interface EventStatus extends MatchResult {
   /** Raw TheSportsDB status (e.g. "1H", "HT", "2H", "ET", "P", "FT", "AET", "PEN"). */
   status: string;
   /** True once the match is fully over, including extra time and penalties. */
   finished: boolean;
+  /**
+   * True when `home`/`away` is the 90-minute result and safe to auto-apply as
+   * the official result. False when the match went to extra time/penalties —
+   * the score reflects the final (post-120'/post-penalties) outcome instead.
+   */
+  resultReliable: boolean;
 }
 
 /**
@@ -232,10 +246,11 @@ export async function fetchEventStatus(
     const home = parseInt(event.intHomeScore, 10);
     const away = parseInt(event.intAwayScore, 10);
     const finished = FINISHED_STATUSES.has(event.strStatus);
+    const resultReliable = finished && !EXTRA_TIME_STATUSES.has(event.strStatus);
 
     return event.strHomeTeam === apiTeamA
-      ? { home, away, status: event.strStatus, finished }
-      : { home: away, away: home, status: event.strStatus, finished };
+      ? { home, away, status: event.strStatus, finished, resultReliable }
+      : { home: away, away: home, status: event.strStatus, finished, resultReliable };
   }
 
   return null;
@@ -254,29 +269,48 @@ export interface FixtureEvent {
 }
 
 /**
- * Fetch the full World Cup 2026 schedule from TheSportsDB and map each event
- * to our internal shape (Spanish team names, our Round labels, and a "Grupo X"
- * stage label when the group is known from the seeded matchday-1 fixture).
- * Events whose round TheSportsDB hasn't published yet (e.g. unannounced
- * knockout fixtures) are skipped.
+ * Fetch the World Cup 2026 knockout-phase schedule from TheSportsDB.
+ * eventsseason.php returns only a handful of events with the free API key, so
+ * we iterate day-by-day across the full knockout window using eventsday.php
+ * instead.  Group-stage matches are seeded manually, so we only look for
+ * rounds beyond matchday 3.
  */
 export async function fetchSeasonEvents(): Promise<FixtureEvent[]> {
-  const res = await fetch(
-    `${THESPORTSDB_BASE}/eventsseason.php?id=${WORLD_CUP_LEAGUE_ID}&s=${WORLD_CUP_SEASON}`
-  );
-  if (!res.ok) return [];
+  const KNOCKOUT_START = '2026-06-28';
+  const KNOCKOUT_END = '2026-07-19';
 
-  const data = await res.json();
-  const events = (data?.events ?? []) as TheSportsDbEvent[];
+  const days: string[] = [];
+  const d = new Date(`${KNOCKOUT_START}T00:00:00Z`);
+  const end = new Date(`${KNOCKOUT_END}T00:00:00Z`);
+  while (d <= end) {
+    days.push(d.toISOString().slice(0, 10));
+    d.setUTCDate(d.getUTCDate() + 1);
+  }
+
+  const perDay = await Promise.all(
+    days.map(async (date) => {
+      const res = await fetch(`${THESPORTSDB_BASE}/eventsday.php?d=${date}&l=${WORLD_CUP_LEAGUE_ID}`);
+      if (!res.ok) return [] as TheSportsDbEvent[];
+      const data = await res.json();
+      return (data?.events ?? []) as TheSportsDbEvent[];
+    })
+  );
 
   const fixtures: FixtureEvent[] = [];
-  for (const event of events) {
+  for (const event of perDay.flat()) {
     const round = mapApiRound(event.intRound);
     if (!round) continue;
 
     const teamA = translateTeamName(event.strHomeTeam);
     const teamB = translateTeamName(event.strAwayTeam);
-    const group = TEAM_GROUP_EN[event.strHomeTeam] ?? TEAM_GROUP_EN[event.strAwayTeam];
+
+    // Only assign a "Grupo X" stage for actual group-stage matchdays; knockout
+    // rounds always use the round name as the stage even if both teams happen to
+    // be in the same group.
+    const isGroupStage = round === 'Fecha 1' || round === 'Fecha 2' || round === 'Fecha 3';
+    const group = isGroupStage
+      ? (TEAM_GROUP_EN[event.strHomeTeam] ?? TEAM_GROUP_EN[event.strAwayTeam])
+      : null;
     const stage = group ? `Grupo ${group}` : round;
 
     fixtures.push({

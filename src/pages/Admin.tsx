@@ -100,9 +100,12 @@ export default function Admin() {
     setSyncingResults(true);
     setSyncResultsMessage(null);
     try {
-      const { updated, notInApi } = await syncAllPendingResults();
+      const { updated, notInApi, needsManualEntry } = await syncAllPendingResults();
       const parts: string[] = [];
       if (updated > 0) parts.push(`${updated} resultado(s) actualizados.`);
+      if (needsManualEntry.length > 0) {
+        parts.push(`${needsManualEntry.length} partido(s) definidos en alargue/penales (cargá el resultado a los 90' manualmente): ${needsManualEntry.map((m) => `${m.teamA} vs ${m.teamB}`).join(', ')}.`);
+      }
       if (notInApi.length > 0) {
         parts.push(`${notInApi.length} partido(s) no encontrados en la API (cargalos manualmente): ${notInApi.map((m) => `${m.teamA} vs ${m.teamB}`).join(', ')}.`);
       }

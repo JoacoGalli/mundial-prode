@@ -23,7 +23,7 @@ export default function AdminMatchRow({ match }: { match: Match }) {
     setSaveStatus('saving');
     if (timerRef.current) clearTimeout(timerRef.current);
     try {
-      await setMatchResult(match.id, { home, away });
+      await setMatchResult(match.id, { home, away }, true);
       setSaveStatus('ok');
     } catch (err) {
       console.error('Error guardando resultado:', err);

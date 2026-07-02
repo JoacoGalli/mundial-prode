@@ -14,18 +14,19 @@ export const ROUNDS: Round[] = [
 
 /**
  * Maps TheSportsDB's `intRound` for league id 4429 (FIFA World Cup) to our
- * Round labels. Rounds 1-3 are the group stage matchdays; rounds 4+ are the
- * knockout stage as TheSportsDB publishes them once the bracket is known.
+ * Round labels. Rounds 1-3 are the group stage matchdays. TheSportsDB uses the
+ * number of remaining teams in the tournament as the round number for the
+ * knockout stage (confirmed: 32 = Round of 32 / Dieciseisavos de Final).
+ * The Final round number is TBD and will be added once TheSportsDB publishes it.
  */
 const API_ROUND_MAP: Record<string, Round> = {
   '1': 'Fecha 1',
   '2': 'Fecha 2',
   '3': 'Fecha 3',
-  '4': 'Dieciseisavos de Final',
-  '5': 'Octavos de Final',
-  '6': 'Cuartos de Final',
-  '7': 'Semifinales',
-  '8': 'Final',
+  '32': 'Dieciseisavos de Final',
+  '16': 'Octavos de Final',
+  '8': 'Cuartos de Final',
+  '4': 'Semifinales',
 };
 
 export function mapApiRound(intRound: string): Round | null {
