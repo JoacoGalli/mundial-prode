@@ -53,6 +53,8 @@ export default function Admin() {
 
   if (!matches || !settings) return <LoadingSpinner />;
 
+  const pointsErrorMatches = matches.filter((m) => m.pointsError);
+
   const handleSeed = async () => {
     if (!confirm('¿Cargar el fixture completo del Mundial 2026 (Fecha 1, 2 y 3 de la fase de grupos)? Esto agregará 72 partidos nuevos.')) return;
     setSeeding(true);
@@ -127,6 +129,23 @@ export default function Admin() {
   return (
     <div className="page">
       <h1 className="page-title">Panel de Administración</h1>
+
+      {pointsErrorMatches.length > 0 && (
+        <div
+          className="card section"
+          style={{ borderColor: 'var(--color-red)', display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}
+        >
+          <AlertTriangle size={20} color="var(--color-red)" style={{ flexShrink: 0, marginTop: '0.15rem' }} />
+          <div>
+            <strong>No se pudieron calcular los puntos de {pointsErrorMatches.length === 1 ? 'este partido' : 'estos partidos'}:</strong>
+            <p className="muted" style={{ margin: '0.35rem 0 0' }}>
+              {pointsErrorMatches.map((m) => `${m.teamA} vs ${m.teamB}`).join(', ')}. El resultado se guardó
+              bien, pero falló el recálculo de puntos (por ejemplo, por cuota de Firestore). Volvé a apretar
+              "Guardar resultado" en la tabla de abajo para reintentarlo.
+            </p>
+          </div>
+        </div>
+      )}
 
       <div className="card section">
         <div className="flex-between" style={{ flexWrap: 'wrap', gap: '0.75rem' }}>

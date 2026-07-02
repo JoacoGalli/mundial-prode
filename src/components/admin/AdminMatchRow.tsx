@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Check, Loader2, Lock, Unlock, X } from 'lucide-react';
+import { AlertTriangle, Check, Loader2, Lock, Unlock, X } from 'lucide-react';
 import type { Match } from '../../types';
 import { formatDateTime } from '../../utils/format';
 import { lockMatch, setMatchResult } from '../../services/matches';
@@ -47,6 +47,11 @@ export default function AdminMatchRow({ match }: { match: Match }) {
       <td>
         <strong>{match.teamA}</strong> vs <strong>{match.teamB}</strong>
         <div className="muted" style={{ fontSize: '0.75rem' }}>{match.stage}</div>
+        {match.pointsError && (
+          <div style={{ fontSize: '0.75rem', color: 'var(--color-red)', display: 'flex', alignItems: 'center', gap: '0.25rem', marginTop: '0.2rem' }}>
+            <AlertTriangle size={12} /> Falló el cálculo de puntos
+          </div>
+        )}
       </td>
       <td>{formatDateTime(match.datetime)}</td>
       <td>

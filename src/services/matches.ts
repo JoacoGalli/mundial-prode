@@ -55,10 +55,14 @@ export async function setMatchResult(matchId: string, result: MatchResult, force
   if (alreadySet) return;
 
   // Point recalculation is best-effort: a failure here doesn't roll back the result.
+  // We flag the outcome on the match doc so the admin panel can warn instead of
+  // silently leaving predictions unscored (recalculation used to fail silently here).
   try {
     await recalculateMatchPoints(matchId, result);
+    await updateDoc(matchRef, { pointsError: false });
   } catch (err) {
     console.error('Error recalculando puntos (el resultado sí se guardó):', err);
+    await updateDoc(matchRef, { pointsError: true }).catch(() => {});
   }
 }
 

@@ -55,7 +55,7 @@ service cloud.firestore {
       allow read: if isSignedIn();
       allow write: if isAdmin();
       allow update: if isSignedIn() &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['result', 'locked', 'liveScore', 'liveStatus']);
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['result', 'locked', 'liveScore', 'liveStatus', 'pointsError']);
     }
 
     // ---- /users/{uid} ----

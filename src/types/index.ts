@@ -40,6 +40,8 @@ export interface Match {
   liveScore?: MatchResult | null;
   /** Raw TheSportsDB status while live (e.g. "1H", "HT", "2H", "ET", "P"). Cleared once `result` is set. */
   liveStatus?: string | null;
+  /** True if the last attempt to recalculate predictions' points for this match's result failed. */
+  pointsError?: boolean;
 }
 
 export interface Prediction {
