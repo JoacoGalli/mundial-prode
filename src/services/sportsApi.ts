@@ -9,6 +9,7 @@ interface TheSportsDbEvent {
   strHomeTeam: string;
   strAwayTeam: string;
   strTimestamp: string;
+  dateEvent: string;
   intRound: string;
   intHomeScore: string | null;
   intAwayScore: string | null;
@@ -298,7 +299,7 @@ export async function fetchSeasonEvents(): Promise<FixtureEvent[]> {
 
   const fixtures: FixtureEvent[] = [];
   for (const event of perDay.flat()) {
-    const round = mapApiRound(event.intRound);
+    const round = mapApiRound(event.intRound, event.dateEvent);
     if (!round) continue;
 
     const teamA = translateTeamName(event.strHomeTeam);

@@ -20,11 +20,26 @@ describe('mapApiRound', () => {
   it('maps known TheSportsDB round numbers to our round labels', () => {
     expect(mapApiRound('1')).toBe('Fecha 1');
     expect(mapApiRound('3')).toBe('Fecha 3');
-    expect(mapApiRound('8')).toBe('Final');
+    expect(mapApiRound('8')).toBe('Cuartos de Final');
   });
 
-  it('returns null for unknown round numbers', () => {
+  it('maps the "125" round number TheSportsDB actually used for Cuartos de Final', () => {
+    expect(mapApiRound('125')).toBe('Cuartos de Final');
+  });
+
+  it('returns null for unknown round numbers with no date to fall back on', () => {
     expect(mapApiRound('99')).toBeNull();
+  });
+
+  it('falls back to the fixed knockout calendar for unrecognized round numbers', () => {
+    expect(mapApiRound('999', '2026-07-10')).toBe('Cuartos de Final');
+    expect(mapApiRound('999', '2026-07-05')).toBe('Octavos de Final');
+    expect(mapApiRound('999', '2026-07-14')).toBe('Semifinales');
+    expect(mapApiRound('999', '2026-07-19')).toBe('Final');
+  });
+
+  it('returns null when the date falls outside every known knockout window', () => {
+    expect(mapApiRound('999', '2026-06-01')).toBeNull();
   });
 });
 
