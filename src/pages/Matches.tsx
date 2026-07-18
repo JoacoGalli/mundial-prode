@@ -3,18 +3,20 @@ import { Check, Loader2 } from 'lucide-react';
 import { subscribeToUserPredictions, savePredictions } from '../services/predictions';
 import { subscribeToLeaderboard } from '../services/users';
 import { subscribeToAllGroups, subscribeToGroupMembers, subscribeToMyMemberships } from '../services/groups';
+import { subscribeToAllChampionPicks } from '../services/championPicks';
 import { useAuth } from '../contexts/AuthContext';
 import MatchCard from '../components/MatchCard';
+import FinalistsCard from '../components/FinalistsCard';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { useMatchesWithLiveScores } from '../hooks/useMatchesWithLiveScores';
 import { isMatchLocked } from '../utils/format';
 import { ROUNDS, getDefaultRound } from '../utils/rounds';
-import type { Group, GroupMember, Prediction, Round, UserProfile } from '../types';
+import type { ChampionPick, Group, GroupMember, Prediction, Round, UserProfile } from '../types';
 
 const GENERAL = 'general';
 
 export default function Matches() {
-  const { user } = useAuth();
+  const { user, settings } = useAuth();
   const { matches, loading } = useMatchesWithLiveScores();
   const [predictions, setPredictions] = useState<Prediction[]>([]);
   const [users, setUsers] = useState<UserProfile[]>([]);
@@ -27,6 +29,7 @@ export default function Matches() {
   const [groupMembers, setGroupMembers] = useState<GroupMember[]>([]);
   const [selectedGroupId, setSelectedGroupId] = useState<string>(GENERAL);
   const [hasDefaulted, setHasDefaulted] = useState(false);
+  const [championPicks, setChampionPicks] = useState<ChampionPick[]>([]);
 
   useEffect(() => {
     if (!user) return;
@@ -41,6 +44,11 @@ export default function Matches() {
 
   useEffect(() => {
     const unsubscribe = subscribeToAllGroups(setAllGroups);
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    const unsubscribe = subscribeToAllChampionPicks(setChampionPicks);
     return () => unsubscribe();
   }, []);
 
@@ -161,6 +169,15 @@ export default function Matches() {
           }
         />
       ))}
+
+      {round === 'Final' && settings?.finalists && (
+        <FinalistsCard
+          finalists={settings.finalists}
+          picks={championPicks}
+          usersById={usersById}
+          championBonus={settings.championBonus}
+        />
+      )}
 
       {user && openMatches.length > 0 && (
         <button
